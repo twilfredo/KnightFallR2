@@ -2,7 +2,8 @@
 #Setting to exclusively build for the Particle Argon
 set(BOARD particle_boron)
 set(BOARD_FLASH_RUNNER jlink)
-set(CONF_FILE prj.conf overlay_rtt_shell_console.conf overlay_modem.conf overlay_sensors.conf)
+set(DTC_OVERLAY_FILE boards/mcp9808.overlay)
+set(CONF_FILE prj.conf uart_shell.conf modem.conf sensors.conf)
 
 cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
