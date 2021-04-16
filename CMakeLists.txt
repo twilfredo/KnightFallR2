@@ -9,4 +9,12 @@ cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(blinky)
 
-target_sources(app PRIVATE src/main.c)
+#Add include_directories for libraries, path starts from this files location.
+include_directories(
+                        lib/mcp9808/
+                        )
+
+target_sources(app PRIVATE
+                        src/main.c
+                        lib/mcp9808/mcp9808.c
+                        )
