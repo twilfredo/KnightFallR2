@@ -3,7 +3,6 @@
 #include "mcp9808.h"
 
 #define MCP9808_DEVNAME DT_LABEL(DT_INST(0, microchip_mcp9808))
-
 LOG_MODULE_REGISTER(mcp9808_abstract_driver, LOG_LEVEL_DBG);
 
 /**
