@@ -3,18 +3,18 @@
 set(BOARD particle_boron)
 set(BOARD_FLASH_RUNNER jlink)
 set(DTC_OVERLAY_FILE boards/mcp9808.overlay)
-set(CONF_FILE prj.conf rtt_shell_console.conf modem.conf sensors.conf)
+set(CONF_FILE prj.conf rtt_console.conf)
 
 cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
-project(blinky)
+project(uqdrifter)
 
 #Add include_directories for libraries, path starts from this files location.
-include_directories(
-                        lib/mcp9808/
-                        )
+include_directories(inc/
+                    lib/saraR4_modem/
+                    )
 
 target_sources(app PRIVATE
                         src/main.c
-                        lib/mcp9808/mcp9808.c
+                        lib/saraR4_modem/sara_r4.c    
                         )
