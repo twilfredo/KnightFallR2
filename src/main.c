@@ -13,9 +13,6 @@
 #include "main.h"
 #include "sara_r4.h"
 
-/* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS_FAST 500
-#define SLEEP_TIME_MS_SLOW 1000
 bool tcpConnected = false;
 
 LOG_MODULE_REGISTER(MAIN, LOG_LEVEL_DBG);

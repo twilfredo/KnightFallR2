@@ -11,6 +11,10 @@
 #ifndef MAIN_H
 #define MAIN_H
 
+/* 1000 msec = 1 sec */
+#define SLEEP_TIME_MS_FAST 500
+#define SLEEP_TIME_MS_SLOW 1000
+
 /* Debug Thread Stack size */
 #define STACK_SIZE_LED_THREAD 128
 

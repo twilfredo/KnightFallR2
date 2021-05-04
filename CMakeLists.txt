@@ -16,5 +16,6 @@ include_directories(inc/
 
 target_sources(app PRIVATE
                         src/main.c
-                        lib/saraR4_modem/sara_r4.c    
+                        #lib/saraR4_modem/sara_r4.c    
+                        lib/tsd10/tsd10_adc.c   
                         )
