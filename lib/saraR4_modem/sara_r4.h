@@ -1,11 +1,19 @@
 #ifndef SARA_R4_C
 #define SARA_R4_C
 
+/* ==================================================================== */
+/* ==============================THREAD DEFINES======================== */
+/* ==================================================================== */
 /* Debug Thread Stack size */
 #define STACK_SIZE_MODEM_THREAD 4096
 
 /* Debug Thread Priority */
 #define THREAD_PRIORITY_MODEM 5 /* Lower Numerics has higher priority, -Ve Priorities are cooperitive threads, +Ve Priorities  are Preemtible  */
+
+/* ==================================================================== */
+/* ===============================GLOBALS============================== */
+/* ==================================================================== */
+extern bool tcpConnected;
 
 /* ==================================================================== */
 /* ==============================MODEM PINS============================ */
@@ -62,10 +70,12 @@ int modem_pin_init(void);
 
 void modem_uart_tx(char *command);
 
-void modem_uart_rx(void);
-
 void modem_recv(void);
 
-static void mdm_receiver_flush(const struct device *uart_device);
+void mdm_receiver_flush(const struct device *uart_device);
+
+bool modem_network_init(void);
+
+bool modem_tcp_init(void);
 
 #endif

@@ -23,10 +23,18 @@ K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NU
 K_SEM_DEFINE(modemSendSem, 1, 1);
 K_SEM_DEFINE(modemRecSem, 0, 1);
 K_SEM_DEFINE(modemReadOkSem, 0, 1);
+K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 
 #define MODEM_APN "telstra.internet"
 #define MODEM_MCCMNO "50501"
-#define AT_INIT_CMD_SIZE 13
+#define HOME_PC_IP "167.179.184.183"
+#define AT_INIT_CMD_SIZE 9
+#define TCP_INI_CMD_SIZE 2
+
+//TODO Increase the TCP Timeout
+#define TCP_TIMEOUT_S 10
+#define NETWORK_TIMEOUT_S 60
+
 /**
  * @brief The following array contains modem initialization AT commands.
  *        1. Turn Echo Off.
@@ -41,19 +49,24 @@ K_SEM_DEFINE(modemReadOkSem, 0, 1);
  *        10. RSSI (Current Service Cell)
  */
 char atInitCommands[AT_INIT_CMD_SIZE][64] = {
-    "ATE0\r",                                  //1
-    "AT+CFUN=0\r",                             //2
-    "AT+CMEE=1\r",                             //3
-    "AT+UGPIOC=23,0,0\r",                      //4
-    "AT+CREG=1\r",                             //5
-    "AT+CGMI\r",                               //Request Manufacture Data
-    "AT+CGMM\r",                               //Request Manufacture Data
-    "AT+CGMR\r",                               //Request Manufacture Data
-    "AT+CGSN\r",                               //Request Manufacture Data
-    "AT+CIMI\r",                               //Request Manufacture Data
+    "ATE0\r",             //1
+    "AT+CFUN=0\r",        //2
+    "AT+CMEE=1\r",        //3
+    "AT+UGPIOC=23,0,0\r", //4
+    "AT+CREG=1\r",        //5
+    //"AT+CGMI\r",                               //Request Manufacture Data
+    //"AT+CGMM\r",                               //Request Manufacture Data
+    //"AT+CGMR\r",                               //Request Manufacture Data
+    //"AT+CGSN\r",                               //Request Manufacture Data
+    //"AT+CIMI\r",                               //Request Manufacture Data
     "AT+CGDCONT=1,\"IP\",\"" MODEM_APN "\"\r", //6
     "AT+CFUN=1\r",                             //7
-    "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r"};
+    "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",
+    "AT+CFUN=0\r"};
+
+char tcpSetupCommands[TCP_INI_CMD_SIZE][128] = {
+    "AT+USOCR=6\r",
+    "AT+USOCO=0,\"" HOME_PC_IP "\",6969\r"};
 
 /**
  * @brief Primary thread that communicates withe Sara-R4 Modem
@@ -61,11 +74,15 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
  */
 void thread_modem_send(void)
 {
+
+restart_modem:
+    tcpConnected = false;
     //Config Modem GPIO Pins
     if (modem_config_pins() != 0)
     {
         LOG_ERR("Modem GPIO Config Error");
     }
+
     //Power Cycle Sara R4
     modem_pin_init();
 
@@ -75,49 +92,61 @@ void thread_modem_send(void)
         LOG_ERR("UART Config Error");
     }
 
-    for (int i = 0; i < AT_INIT_CMD_SIZE; ++i)
-    {
-        printk("%s\n", atInitCommands[i]);
-    }
-
     //Delay For Modem Response Time After Init.
     k_msleep(4000);
     //Modem is powered on here
 
+    if (!modem_network_init())
+    {
+        LOG_WRN("Error Initializing Network, Restart Modem");
+        //Unable Modem R/W
+        k_sem_give(&modemSendSem);
+        k_sem_give(&modemRecSem);
+        goto restart_modem;
+    }
+
+    short connectionAttempts = 0;
+
+reconnect_tcp:
+    if (!modem_tcp_init())
+    {
+        LOG_WRN("Error Connecting to TCP Server, Trying Again");
+        //Unable Modem R/W
+        k_sem_give(&modemSendSem);
+        k_sem_give(&modemRecSem);
+        connectionAttempts++;
+
+        if (connectionAttempts >= 10)
+        {
+            LOG_ERR("Too Many Connection Attempts, Restarting Modem");
+            goto restart_modem;
+        }
+        else
+        {
+            goto reconnect_tcp;
+        }
+    }
+
+    tcpConnected = true;
+
     while (1)
     {
 
-        for (int i = 0; i < AT_INIT_CMD_SIZE; ++i)
+        if (k_sem_take(&modemSendSem, K_SECONDS(TCP_TIMEOUT_S)) == 0)
         {
-
-            if (k_sem_take(&modemSendSem, K_FOREVER) == 0)
-            {
-                //Modem has received data, send next command
-                modem_uart_tx(atInitCommands[i]);
-                k_sem_give(&modemRecSem);
-            }
-        }
-
-        modem_uart_tx("AT+CFUN=0\r");
-        k_sem_give(&modemRecSem);
-        k_msleep(1000);
-        modem_uart_tx("AT+CFUN=1\r");
-        k_sem_give(&modemRecSem);
-
-        while (1)
-        {
-
-            k_msleep(2000);
-            modem_uart_tx("AT+CESQ\r");
+            modem_uart_tx("AT+USOWR=0,7,\"Wilfred\"\r");
             k_sem_give(&modemRecSem);
-            //TODO Connects to Network Here Need to add CGACT=1.
-            //TODO and print RSSI Value.
+            k_msleep(5000);
         }
-        // "AT+CESQ?\r",
-        //     "AT+CGACT=1,1\r" break;
-    }
+        else
+        {
+            //TCP Error, attempt to re-establish connection.
+            goto reconnect_tcp;
+        }
 
-    //TODO Optimise Delays Here
+        //TODO and print RSSI Value.
+        //modem_uart_tx("AT+CESQ\r");
+    }
 }
 
 /**
@@ -141,12 +170,79 @@ void thread_modem_receive(void)
                 //Read RX ISR Ring Buffer.
                 modem_recv();
                 //Next command can be sent now.
-                //TODO Remove this testing delay.
-                k_msleep(500);
-                //k_sem_give(&modemSendSem);
             }
         }
     }
+}
+
+/**
+ * @brief Initialises network registration, waits on semaphore to detect
+ *          if the modem was ok with the command send. Returns false else, 
+ *          and the calling function will jump to a previous 'goto' to attempt
+ *          to redo the following.
+ * 
+ * @return true Registration Complete
+ * @return false Registration Failed
+ */
+bool modem_network_init(void)
+{
+    for (int i = 0; i < AT_INIT_CMD_SIZE; ++i)
+    {
+        //Run Modem Initialization Sequence
+        if (k_sem_take(&modemSendSem, K_SECONDS(NETWORK_TIMEOUT_S)) == 0)
+        {
+            //Modem has received data, send next command
+            modem_uart_tx(atInitCommands[i]);
+            k_sem_give(&modemRecSem);
+
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(NETWORK_TIMEOUT_S)) != 0)
+            {
+                //Modem response was not OK;
+                return false;
+            }
+        }
+        else
+        {
+            //Unable to send command
+            return false;
+        }
+    }
+    //All commands returned OK and the modemSendSem  was released
+    return true;
+}
+
+/**
+ * @brief Attempts to connect to the TCP address defined in the tcpSetupCommands array.
+ *          Returns true if successfully connected, else the caller function will
+ *          just to a 'goto' to restablish tcp connection. 
+ * 
+ * @return true Connection success.
+ * @return false Connection failed.
+ */
+bool modem_tcp_init(void)
+{
+    for (int i = 0; i < TCP_INI_CMD_SIZE; ++i)
+    {
+
+        if (k_sem_take(&modemSendSem, K_SECONDS(TCP_TIMEOUT_S)) == 0)
+        {
+            modem_uart_tx(tcpSetupCommands[i]);
+            k_sem_give(&modemRecSem);
+
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(TCP_TIMEOUT_S)) != 0)
+            {
+                //Modem response was not OK;
+                return false;
+            }
+        }
+        else
+        {
+            //Unable to send command
+            return false;
+        }
+    }
+    //All commands returned OK and the modemSendSem  was released
+    return true;
 }
 
 /**
@@ -178,6 +274,7 @@ void modem_recv(void)
         if (buffer[i] == 'O' && buffer[i + 1] == 'K')
         {
             k_sem_give(&modemSendSem);
+            k_sem_give(&modemCommandOkSem);
         }
     }
 
@@ -238,7 +335,7 @@ static void uart_cb(const struct device *uart_device, void *user_data)
  * 
  * @param uart_device 
  */
-static void mdm_receiver_flush(const struct device *uart_device)
+void mdm_receiver_flush(const struct device *uart_device)
 {
     uint8_t c;
 
@@ -394,25 +491,5 @@ void modem_uart_tx(char *command)
     for (int i = 0; i < strlen(command); i++)
     {
         uart_poll_out(uart_dev, command[i]);
-    }
-}
-
-void modem_uart_rx(void)
-{
-    const struct device *uart_dev = device_get_binding(UART1);
-    unsigned char recv_char;
-
-    while (1)
-    {
-        while (uart_poll_in(uart_dev, &recv_char) != 0)
-        {
-        }
-
-        LOG_ERR("RECV: %c\n", recv_char);
-
-        if ((recv_char == '\n') || (recv_char == '\r'))
-        {
-            break;
-        }
     }
 }

@@ -11,18 +11,17 @@
 #include <drivers/sensor.h>
 #include <logging/log.h>
 #include "main.h"
+#include "sara_r4.h"
 
 /* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS 500
+#define SLEEP_TIME_MS_FAST 500
+#define SLEEP_TIME_MS_SLOW 1000
+bool tcpConnected = false;
 
 LOG_MODULE_REGISTER(MAIN, LOG_LEVEL_DBG);
 
 /* Compile Time Thread Init */
 K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
-
-void main(void)
-{
-}
 
 /**
  * @brief This thread indicates network conenction status.
@@ -38,8 +37,8 @@ void thread_flash_debug_led(void)
 	const struct device *dev = device_get_binding(BLUE_LED);
 	const struct device *dev1 = device_get_binding(RED_LED);
 
-	int ret = gpio_pin_configure(dev, BLUE_PIN, GPIO_OUTPUT_ACTIVE | BLUE_LED_FLAGS);
-	int ret1 = gpio_pin_configure(dev1, RED_PIN, GPIO_OUTPUT_ACTIVE | RED_LED_FLAGS);
+	int ret = gpio_pin_configure(dev, BLUE_PIN, GPIO_OUTPUT_INACTIVE | BLUE_LED_FLAGS);
+	int ret1 = gpio_pin_configure(dev1, RED_PIN, GPIO_OUTPUT_INACTIVE | RED_LED_FLAGS);
 
 	if (ret < 0 || ret1 < 0)
 	{
@@ -49,10 +48,19 @@ void thread_flash_debug_led(void)
 
 	while (1)
 	{
-		gpio_pin_set(dev, BLUE_PIN, (int)led_is_on);
-		gpio_pin_set(dev, RED_PIN, (int)led_is_on);
-
 		led_is_on = !led_is_on;
-		k_msleep(SLEEP_TIME_MS);
+
+		if (!tcpConnected)
+		{
+			gpio_pin_set(dev, RED_PIN, (int)led_is_on);
+
+			k_msleep(SLEEP_TIME_MS_FAST);
+		}
+		else
+		{
+			gpio_pin_set(dev, BLUE_PIN, (int)led_is_on);
+			gpio_pin_set(dev, RED_PIN, (int)led_is_on);
+			k_msleep(SLEEP_TIME_MS_SLOW);
+		}
 	}
 }
