@@ -8,7 +8,7 @@
 #define STACK_SIZE_MODEM_THREAD 4096
 
 /* Debug Thread Priority */
-#define THREAD_PRIORITY_MODEM 5 /* Lower Numerics has higher priority, -Ve Priorities are cooperitive threads, +Ve Priorities  are Preemtible  */
+#define THREAD_PRIORITY_MODEM -1 /* Lower Numerics has higher priority, -Ve Priorities are cooperitive threads, +Ve Priorities  are Preemtible  */
 
 /* ==================================================================== */
 /* ===============================GLOBALS============================== */

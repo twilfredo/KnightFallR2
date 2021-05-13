@@ -12,10 +12,14 @@ project(uqdrifter)
 #Add include_directories for libraries, path starts from this files location.
 include_directories(inc/
                     lib/saraR4_modem/
+                    lib/sensors_custom/
                     )
 
 target_sources(app PRIVATE
                         src/main.c
-                        #lib/saraR4_modem/sara_r4.c    
-                        lib/tsd10/tsd10_adc.c   
+                        lib/saraR4_modem/sara_r4.c    
+                        #lib/tsd10/tsd10_adc.c   
+                        lib/sensors_custom/adxl343.c
+                        lib/sensors_custom/mcp9808.c
+                        lib/sensors_custom/sensors.c
                         )

@@ -7,6 +7,7 @@
 #include <logging/log.h>
 #include <sys/ring_buffer.h>
 #include "sara_r4.h"
+#include "sensors_custom.h"
 
 //UART RING BUFFERS
 #define RING_BUF_SIZE (64 * 2)
@@ -66,7 +67,7 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
 
 char tcpSetupCommands[TCP_INI_CMD_SIZE][128] = {
     "AT+USOCR=6\r",
-    "AT+USOCO=0,\"" HOME_PC_IP "\",6969\r"};
+    "AT+USOCO=0,\"" HOME_PC_IP "\",4011\r"};
 
 /**
  * @brief Primary thread that communicates withe Sara-R4 Modem
@@ -129,18 +130,33 @@ reconnect_tcp:
 
     tcpConnected = true;
 
+    struct sensor_data sensorData = {0};
+    char sendBuffer[128];
+    char tempBuffer[64];
+
     while (1)
     {
 
+        /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(TCP_TIMEOUT_S)) == 0)
         {
-            modem_uart_tx("AT+USOWR=0,7,\"Wilfred\"\r");
+
+            if (k_msgq_get(&sensor_msgq, &sensorData, K_SECONDS(5)) == 0)
+            {
+                /*Convert sensor data to string format*/
+                snprintk(tempBuffer, 40, "[Temp:%.2fC Roll:%.2f Pitch:%.2f]", sensorData.ambientTemperature, sensorData.roll, sensorData.pitch);
+                //AT+USOWR=0,X : where X is length of data.
+                snprintk(sendBuffer, 64, "AT+USOWR=0,%d,\"%s\"\r", strlen(tempBuffer), tempBuffer);
+            }
+
+            modem_uart_tx(sendBuffer);
             k_sem_give(&modemRecSem);
-            k_msleep(5000);
+            k_msleep(500);
         }
         else
         {
             //TCP Error, attempt to re-establish connection.
+            tcpConnected = false;
             goto reconnect_tcp;
         }
 

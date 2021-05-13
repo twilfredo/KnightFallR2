@@ -56,13 +56,14 @@ void thread_tsd10_adc(void)
 
     while (1)
     {
-        if (adc_read(adc_dev, &sequence) < 0)
-        {
-            LOG_ERR("Error reading TSD10 ADC Channel");
-        }
-        //TODO Able to read RAW Values, Add convertion to volts.
-        //TODO Tune ADC Reads Vals.
-        printk("Read: %d\n", sample_buffer);
-        k_msleep(500);
+        // if (adc_read(adc_dev, &sequence) < 0)
+        // {
+        //     LOG_ERR("Error reading TSD10 ADC Channel");
+        // }
+        // //TODO Able to read RAW Values, Add convertion to volts.
+        // //TODO Tune ADC Reads Vals.
+        //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)
+        // //printk("Read: %d\n", sample_buffer);
+        k_msleep(5000);
     }
 }
