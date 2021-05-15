@@ -1,3 +1,11 @@
+/**
+ ************************************************************************
+ * @file adxl343.h
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief adxl343 accelerometer driver
+ **********************************************************************
+ **/
 #ifndef ADXL343_H
 #define ADXL343_H
 

@@ -1,3 +1,13 @@
+
+/**
+ ************************************************************************
+ * @file sensors_custom.h
+ * @author Wilfred MK
+ * @date 15.05.2021 (Last Updated)
+ * @brief Sensor module to interact with the I2C sensor bus. 
+ **********************************************************************
+ **/
+
 #ifndef SENSORS_CUSTOM_H
 #define SENSORS_CUSTOM_H
 

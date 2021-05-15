@@ -1,3 +1,13 @@
+
+/**
+ ************************************************************************
+ * @file sensors.c
+ * @author Wilfred MK
+ * @date 15.05.2021 (Last Updated)
+ * @brief Sensor module to interact with the I2C sensor bus. 
+ **********************************************************************
+ **/
+
 #include <drivers/sensor.h>
 #include <drivers/i2c.h>
 #include <logging/log.h>

@@ -1,4 +1,13 @@
 
+/**
+ ************************************************************************
+ * @file sara_r4.c
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief Custom sara-r4 communication module.
+ **********************************************************************
+ **/
+
 #include <zephyr.h>
 #include <stdio.h>
 #include <stdlib.h>

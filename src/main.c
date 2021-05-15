@@ -1,8 +1,13 @@
-/*
- * Copyright (c) 2016 Intel Corporation
- *
- * SPDX-License-Identifier: Apache-2.0
- */
+
+/**
+ ************************************************************************
+ * @file sara_r4.c
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief Entry thread, instantiates auxilliary modules.
+ * TODO: Start aux threads in this file
+ **********************************************************************
+ **/
 
 #include <zephyr.h>
 #include <device.h>

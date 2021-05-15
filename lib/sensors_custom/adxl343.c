@@ -1,3 +1,13 @@
+
+/**
+ ************************************************************************
+ * @file adxl343.c
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief adxl343 accelerometer driver
+ **********************************************************************
+ **/
+
 #include <drivers/sensor.h>
 #include <drivers/i2c.h>
 #include <logging/log.h>

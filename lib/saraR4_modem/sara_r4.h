@@ -1,3 +1,12 @@
+
+/**
+ ************************************************************************
+ * @file sara_r4.h
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief Custom sara-r4 communication module.
+ **********************************************************************
+ **/
 #ifndef SARA_R4_C
 #define SARA_R4_C
 

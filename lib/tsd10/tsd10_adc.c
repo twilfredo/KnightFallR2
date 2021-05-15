@@ -1,3 +1,12 @@
+/**
+ ************************************************************************
+ * @file tsd10_adc.c
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief tsd10_adc driver
+ **********************************************************************
+ **/
+
 #include <zephyr.h>
 #include <device.h>
 #include <devicetree.h>
