@@ -1,8 +1,0 @@
-
-&i2c0 {
-	mcp9808@18 {
-		compatible = "microchip,mcp9808";
-		reg = <0x18>;
-		label = "MCP9808";
-	};
-};

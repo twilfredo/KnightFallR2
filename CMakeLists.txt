@@ -2,7 +2,6 @@
 #Setting to exclusively build for the Particle Argon
 set(BOARD particle_boron)
 set(BOARD_FLASH_RUNNER jlink)
-set(DTC_OVERLAY_FILE boards/mcp9808.overlay)
 set(CONF_FILE prj.conf rtt_console.conf)
 
 cmake_minimum_required(VERSION 3.13.1)
