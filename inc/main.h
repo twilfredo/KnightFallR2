@@ -1,10 +1,10 @@
+
 /**
  ************************************************************************
  * @file main.h
- * @author Wilfred MK, Aaron Helmore
- * @date 20.03.2021
- * @brief Contains required definitions by the main entry thread
- *           for static node.
+ * @author Wilfred MK
+ * @date 13.05.2021 (Last Updated)
+ * @brief Entry thread, instantiates auxilliary modules.
  **********************************************************************
  **/
 
