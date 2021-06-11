@@ -441,7 +441,10 @@ int modem_config_pins(void)
 
 /**
  * @brief Initialises the modem and power cycles it as per spec 
- *          to bring it upto operational standards.
+ *          to bring it upto operational mode.
+ * 
+ * @note Needs to follow this specific sequence, and is timing 
+ *          dependent as per data sheet. 
  * 
  * @return int 
  */
@@ -507,7 +510,11 @@ int modem_pin_init(void)
 }
 
 //static const char *poll_data = "AT+CGMI\r";
-
+/**
+ * @brief Send an AT command to the modem using the uart interface
+ * 
+ * @param command AT command to be sent.
+ */
 void modem_uart_tx(char *command)
 {
     printk("Sent: %s\n", command);
