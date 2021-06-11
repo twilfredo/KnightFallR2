@@ -18,12 +18,25 @@
 #include "main.h"
 #include "sara_r4.h"
 
+/* USB Driver - Shell Usage */
+#include <usb/usb_device.h>
+
 bool tcpConnected = false;
 
 LOG_MODULE_REGISTER(MAIN, LOG_LEVEL_DBG);
 
 /* Compile Time Thread Init */
 K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
+
+/**
+ * @brief Entry thread to enable criticle drivers
+ * 
+ */
+void main(void)
+{
+	/* Zephyr Enable USB Driver - Config in proj.conf */
+	usb_enable(NULL);
+}
 
 /**
  * @brief This thread indicates network conenction status.
