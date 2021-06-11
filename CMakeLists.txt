@@ -2,7 +2,7 @@
 #Setting to exclusively build for the Particle Argon
 set(BOARD particle_boron)
 set(BOARD_FLASH_RUNNER jlink)
-set(CONF_FILE prj.conf rtt_console.conf)
+set(CONF_FILE prj.conf rtt_shell.conf)
 
 cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
@@ -16,7 +16,8 @@ include_directories(inc/
 
 target_sources(app PRIVATE
                         src/main.c
-                        lib/saraR4_modem/sara_r4.c    
+                        lib/saraR4_modem/sara_r4.c  
+                        lib/saraR4_modem/dbg_led.c  
                         #lib/tsd10/tsd10_adc.c   
                         lib/sensors_custom/adxl343.c
                         lib/sensors_custom/mcp9808.c

@@ -17,7 +17,7 @@
 #include <math.h>
 
 LOG_MODULE_REGISTER(sensor_driver, LOG_LEVEL_DBG);
-K_THREAD_DEFINE(sensor_driver, STACK_SIZE_SENSORS, thread_sensors, NULL, NULL, NULL, THREAD_PRIORITY_SENSORS, 0, 10);
+//K_THREAD_DEFINE(sensor_driver, STACK_SIZE_SENSORS, thread_sensors, NULL, NULL, NULL, THREAD_PRIORITY_SENSORS, 0, 10);
 
 /* Defines and initializes an empty message queue that is capable of holding 10 items */
 K_MSGQ_DEFINE(sensor_msgq, sizeof(struct sensor_data), 10, 4);

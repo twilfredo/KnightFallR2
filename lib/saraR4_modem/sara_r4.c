@@ -25,10 +25,6 @@ struct ring_buf rx_rb;
 
 LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
-/* Compile Time Thread Init */
-K_THREAD_DEFINE(modem_send, STACK_SIZE_MODEM_THREAD, thread_modem_send, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
-K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
-
 /* Modem Send/Rec Semaphore */
 K_SEM_DEFINE(modemSendSem, 1, 1);
 K_SEM_DEFINE(modemRecSem, 0, 1);
@@ -71,20 +67,23 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
     //"AT+CIMI\r",                               //Request Manufacture Data
     "AT+CGDCONT=1,\"IP\",\"" MODEM_APN "\"\r", //6
     "AT+CFUN=1\r",                             //7
-    "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",
-    "AT+CFUN=0\r"};
+    "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",      //8
+    "AT+CFUN=0\r"};                            //9
 
+/* TCP Connection Setup */
 char tcpSetupCommands[TCP_INI_CMD_SIZE][128] = {
     "AT+USOCR=6\r",
     "AT+USOCO=0,\"" HOME_PC_IP "\",4011\r"};
 
 /**
- * @brief Primary thread that communicates withe Sara-R4 Modem
+ * @brief Primary thread that communicates with the Sara-R4 Modem
+ *          the sequence of operations in this thread must be maintained
+ *          to ensure modem functionality. Do not change the timing. 
  * 
  */
-void thread_modem_send(void)
+void thread_modem_ctrl(void)
 {
-
+//Begin modem power sequnce
 restart_modem:
     tcpConnected = false;
     //Config Modem GPIO Pins
@@ -104,8 +103,8 @@ restart_modem:
 
     //Delay For Modem Response Time After Init.
     k_msleep(4000);
-    //Modem is powered on here
 
+    //Modem is powered on here
     if (!modem_network_init())
     {
         LOG_WRN("Error Initializing Network, Restart Modem");
@@ -116,7 +115,7 @@ restart_modem:
     }
 
     short connectionAttempts = 0;
-
+//Establish TCP Connection to specified server
 reconnect_tcp:
     if (!modem_tcp_init())
     {
@@ -128,11 +127,13 @@ reconnect_tcp:
 
         if (connectionAttempts >= 10)
         {
+            //Multiple Connection attempst failed, powercycle modem
             LOG_ERR("Too Many Connection Attempts, Restarting Modem");
             goto restart_modem;
         }
         else
         {
+            //Attemp to recoonect
             goto reconnect_tcp;
         }
     }
@@ -143,9 +144,9 @@ reconnect_tcp:
     char sendBuffer[128];
     char tempBuffer[64];
 
+    //Network Ready
     while (1)
     {
-
         /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(TCP_TIMEOUT_S)) == 0)
         {
@@ -176,6 +177,8 @@ reconnect_tcp:
 
 /**
  * @brief Receive data from the modem on UART RX
+ *          calls modem_recv that will parse
+ *          and log the received message from ring buffer.
  * 
  */
 void thread_modem_receive(void)
@@ -183,7 +186,6 @@ void thread_modem_receive(void)
 
     while (1)
     {
-
         //Wait until a command is sent/
         if (k_sem_take(&modemRecSem, K_FOREVER) == 0)
         {
@@ -193,7 +195,12 @@ void thread_modem_receive(void)
                 //#Wait for RX to complete reading.
                 k_msleep(1000);
                 //Read RX ISR Ring Buffer.
-                modem_recv();
+                if (modem_recv())
+                {
+                    //The received message was valid, i.e OK
+                    k_sem_give(&modemSendSem);
+                    k_sem_give(&modemCommandOkSem);
+                }
                 //Next command can be sent now.
             }
         }
@@ -256,7 +263,7 @@ bool modem_tcp_init(void)
 
             if (k_sem_take(&modemCommandOkSem, K_SECONDS(TCP_TIMEOUT_S)) != 0)
             {
-                //Modem response was not OK;
+                //Modem response was not OK, or was timed out;
                 return false;
             }
         }
@@ -271,41 +278,56 @@ bool modem_tcp_init(void)
 }
 
 /**
- * @brief Read modem response saved into ring buffer.
+ * @brief Send an AT command to the modem using the uart interface
+ * 
+ * @param command AT command to be sent.
+ */
+void modem_uart_tx(char *command)
+{
+    const struct device *uart_dev = device_get_binding(UART1);
+    /* Verify uart_poll_out() */
+    for (int i = 0; i < strlen(command); i++)
+    {
+        uart_poll_out(uart_dev, command[i]);
+    }
+    LOG_DBG("MODEM SENT:\n %s\n", log_strdup(command));
+}
+
+/**
+ * @brief Read modem response (uart rx) and save into ring buffer.
  * 
  */
-void modem_recv(void)
+bool modem_recv(void)
 {
-    int readBytes = 0;
+    int numReadBytes = 0; //Number of bytes read from ringbuffer
     uint8_t ringBufferLoad[MAX_READ_SIZE];
     char buffer[MAX_READ_SIZE];
 
-    readBytes = ring_buf_get(&rx_rb, ringBufferLoad, sizeof(ringBufferLoad));
+    numReadBytes = ring_buf_get(&rx_rb, ringBufferLoad, sizeof(ringBufferLoad));
 
     //Null Terminate Read Buffer
     //TODO Figure out a way to build a string from this.
-    for (int i = 0; i < readBytes; ++i)
+    for (int i = 0; i < numReadBytes; ++i)
     {
         buffer[i] = ringBufferLoad[i];
 
-        if (i + 1 == readBytes)
+        if (i + 1 == numReadBytes)
         {
             buffer[i + 1] = '\0';
         }
     }
 
+    LOG_DBG("MODEM RESPONSE: %s", log_strdup(buffer));
+
+    //Check if the modem response had 'OK' in it
     for (int i = 0; i < strlen(buffer); ++i)
     {
         if (buffer[i] == 'O' && buffer[i + 1] == 'K')
         {
-            k_sem_give(&modemSendSem);
-            k_sem_give(&modemCommandOkSem);
+            return true;
         }
     }
-
-    printk("-----Modem Response Start------\n");
-    printk("%s", buffer);
-    printk("-----Modem Response End------\n");
+    return false;
 }
 
 /**
@@ -350,6 +372,7 @@ static void uart_cb(const struct device *uart_device, void *user_data)
                 k_sem_give(&modemReadOkSem);
                 break;
             }
+            //Modem Response received
             k_sem_give(&modemReadOkSem);
         }
     }
@@ -507,21 +530,4 @@ int modem_pin_init(void)
 
     LOG_INF("... Done!");
     return 0;
-}
-
-//static const char *poll_data = "AT+CGMI\r";
-/**
- * @brief Send an AT command to the modem using the uart interface
- * 
- * @param command AT command to be sent.
- */
-void modem_uart_tx(char *command)
-{
-    printk("Sent: %s\n", command);
-    const struct device *uart_dev = device_get_binding(UART1);
-    /* Verify uart_poll_out() */
-    for (int i = 0; i < strlen(command); i++)
-    {
-        uart_poll_out(uart_dev, command[i]);
-    }
 }

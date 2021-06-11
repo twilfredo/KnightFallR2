@@ -71,7 +71,7 @@ int modem_config_pins(void);
 
 int modem_uart_init(void);
 
-void thread_modem_send(void);
+void thread_modem_ctrl(void);
 
 void thread_modem_receive(void);
 
@@ -79,7 +79,7 @@ int modem_pin_init(void);
 
 void modem_uart_tx(char *command);
 
-void modem_recv(void);
+bool modem_recv(void);
 
 void mdm_receiver_flush(const struct device *uart_device);
 
