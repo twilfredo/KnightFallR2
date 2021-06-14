@@ -13,6 +13,7 @@ include_directories(inc/
                     lib/saraR4_modem/
                     lib/sam_m8q_gps/
                     lib/sensors_custom/
+                    lib/tsd10/
                     )
 
 target_sources(app PRIVATE

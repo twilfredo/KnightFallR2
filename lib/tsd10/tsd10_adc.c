@@ -19,9 +19,6 @@
 /* Register Log Module */
 LOG_MODULE_REGISTER(TSD10_ADC, LOG_LEVEL_DBG);
 
-/* Compile Time Thread Init */
-K_THREAD_DEFINE(tsd10_adc, STACK_SIZE_TSD_THREAD, thread_tsd10_adc, NULL, NULL, NULL, THREAD_PRIORITY_TSD_THREAD, 0, 50);
-
 /* ADC Channel 0 Config Struct */
 const struct adc_channel_cfg channel_cfg = {
     .channel_id = ADC_CHANNEL_0,
