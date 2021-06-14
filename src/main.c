@@ -15,9 +15,14 @@
 #include <drivers/gpio.h>
 #include <drivers/sensor.h>
 #include <logging/log.h>
+#include <usb/usb_device.h>
+#include <drivers/uart.h>
+
 #include "dbg_led.h"
 #include "sara_r4.h"
 #include "sensors_custom.h"
+
+#include "sam_m8q.h"
 
 /* Compile Time Thread Init */
 K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
@@ -26,3 +31,9 @@ K_THREAD_DEFINE(sensor_driver, STACK_SIZE_SENSORS, thread_sensors, NULL, NULL, N
 /* Compile Time Thread Init */
 K_THREAD_DEFINE(modem_send, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
 K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
+
+void main(void)
+{
+    /* Start USB Driver */
+    usb_enable(NULL);
+}

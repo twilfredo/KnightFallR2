@@ -406,7 +406,7 @@ int modem_uart_init(void)
         .parity = UART_CFG_PARITY_NONE,
         .stop_bits = UART_CFG_STOP_BITS_1,
         .data_bits = UART_CFG_DATA_BITS_8,
-        .flow_ctrl = UART_CFG_FLOW_CTRL_RTS_CTS};
+        .flow_ctrl = UART_CFG_FLOW_CTRL_NONE};
 
     /* Obtain pre-initialised device binding - see device_config.h */
     const struct device *dev_uart1 = device_get_binding(UART1);
