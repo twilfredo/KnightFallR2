@@ -176,6 +176,7 @@ reconnect_MQTT:
             modem_uart_tx(sendBuffer);
             k_sem_give(&modemRecSem);
             k_msleep(500);
+            //TODO: Merge to master branch once completed pub/sub
         }
         else
         {
