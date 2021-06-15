@@ -4,8 +4,16 @@
  * @file sara_r4.c
  * @author Wilfred MK
  * @date 13.05.2021 (Last Updated)
- * @brief Custom sara-r4 communication module.
- **********************************************************************
+ * @brief Custom sara-r4 communication module. This module abstracts 
+ *          sara-r4 driver and perform network management. 
+ *        Sub-routines include
+ *                  1. Power cycling the modem (Timing Critical)
+ *                  2. MQTT Connection Establishment
+ *                  3. MQTT Pub sensor data, and get Config data
+ *                  3. Sleeping Modem
+ *@note This is not a standalone driver for the sara R4 Modem, it integrates
+            the networking and the modem for the specific usecase of this project. 
+ ************************************************************************
  **/
 
 #include <zephyr.h>
@@ -41,7 +49,7 @@ K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 #define TS_MQTT_ADDR "mqtt.thingspeak.com"
 #define TS_MQTT_PORT "1883"
 #define TS_MQTT_API_KEY "AK5KGIM2JJQD40QZ"
-#define TS_MQTT_UNAME "arbName77"
+#define TS_MQTT_UNAME "WilfredMK" //This could be any uniqueName
 #define MQTT_INI_CMD_SIZE 5
 
 //TODO Increase the TCP Timeout
