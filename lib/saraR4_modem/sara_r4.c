@@ -44,13 +44,13 @@ K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 #define MODEM_MCCMNO "50501"
 #define HOME_PC_IP "167.179.184.183"
 #define AT_INIT_CMD_SIZE 9  //Array Size containing modem network establish commands
-#define MQTT_INI_CMD_SIZE 5 //Array Size containing MQTT init commands
+#define MQTT_INI_CMD_SIZE 6 //Array Size containing MQTT init commands
 
 /* MQTT DEFINES */
 #define TS_MQTT_ADDR "mqtt.thingspeak.com"
 #define TS_MQTT_PORT "1883"
-#define TS_MQTT_API_KEY "AK5KGIM2JJQD40QZ" //Thing Speak API KEY (MQTT - Account Level)
-#define TS_MQTT_UNAME "WilfredMK"          //This could be any uniqueName
+#define TS_MQTT_API_KEY "HBMXZE8BF51ONVO5" //Thing Speak API KEY (MQTT - Account Level)
+#define TS_MQTT_UNAME "UQDrifter1"         //This could be any uniqueName
 
 //TODO Increase the MQTT Timeout (?)
 #define MQTT_TIMEOUT_S 10
@@ -89,6 +89,7 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
 char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
     "AT+CPSMS=0\r",
     "AT+CEDRXS=0\r",
+    "AT+UMQTT=0,35275309002\r", //MQTT unique client id  //! Client ID, TS_MQTT_UNAME and TS_MQTT_API_KEY Should not change
     "AT+UMQTT=2,\"" TS_MQTT_ADDR "\", " TS_MQTT_PORT "\r",
     "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_API_KEY "\"\r",
     "AT+UMQTTC=1\r"};
@@ -169,7 +170,7 @@ reconnect_MQTT:
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             /* Updates Turbidity Field on thingspeak, with const val 0 */
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/GRK3OCBL52OO3TGB", "55");
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", "67");
             //1. Publish Turbidity
             //2. Publish Battery Data
             //3. Publish Longitute - GPS
