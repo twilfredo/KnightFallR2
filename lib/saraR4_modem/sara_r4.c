@@ -39,20 +39,20 @@ K_SEM_DEFINE(modemRecSem, 0, 1);
 K_SEM_DEFINE(modemReadOkSem, 0, 1);
 K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 
+/* Network Defines */
 #define MODEM_APN "telstra.internet"
 #define MODEM_MCCMNO "50501"
 #define HOME_PC_IP "167.179.184.183"
-#define AT_INIT_CMD_SIZE 9
-#define TCP_INI_CMD_SIZE 2
+#define AT_INIT_CMD_SIZE 9  //Array Size containing modem network establish commands
+#define MQTT_INI_CMD_SIZE 5 //Array Size containing MQTT init commands
 
 /* MQTT DEFINES */
 #define TS_MQTT_ADDR "mqtt.thingspeak.com"
 #define TS_MQTT_PORT "1883"
-#define TS_MQTT_API_KEY "AK5KGIM2JJQD40QZ"
-#define TS_MQTT_UNAME "WilfredMK" //This could be any uniqueName
-#define MQTT_INI_CMD_SIZE 5
+#define TS_MQTT_API_KEY "AK5KGIM2JJQD40QZ" //Thing Speak API KEY (MQTT - Account Level)
+#define TS_MQTT_UNAME "WilfredMK"          //This could be any uniqueName
 
-//TODO Increase the TCP Timeout
+//TODO Increase the MQTT Timeout (?)
 #define MQTT_TIMEOUT_S 10
 #define NETWORK_TIMEOUT_S 60
 
@@ -84,11 +84,6 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
     "AT+CFUN=1\r",                             //7
     "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",      //8
     "AT+CFUN=0\r"};                            //9
-
-/* TCP Connection Setup */
-char tcpSetupCommands[TCP_INI_CMD_SIZE][128] = {
-    "AT+USOCR=6\r",
-    "AT+USOCO=0,\"" HOME_PC_IP "\",4011\r"};
 
 /* MQTT Connection Setup */
 char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
@@ -174,7 +169,7 @@ reconnect_MQTT:
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             /* Updates Turbidity Field on thingspeak, with const val 0 */
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/GRK3OCBL52OO3TGB", "0");
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/GRK3OCBL52OO3TGB", "55");
             //1. Publish Turbidity
             //2. Publish Battery Data
             //3. Publish Longitute - GPS
