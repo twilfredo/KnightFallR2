@@ -8,7 +8,7 @@
 LOG_MODULE_REGISTER(DBG_LED, LOG_LEVEL_DBG);
 //Extern variable for connection status
 //TODO chnage this an event etc...
-bool tcpConnected = false;
+bool mqttConnected = false;
 /**
  * @brief This thread indicates network conenction status.
  * 		Status 1: Fast Blink when not connected.
@@ -36,7 +36,7 @@ void thread_flash_debug_led(void)
     {
         led_is_on = !led_is_on;
 
-        if (!tcpConnected)
+        if (!mqttConnected)
         {
             gpio_pin_set(dev, RED_PIN, (int)led_is_on);
 

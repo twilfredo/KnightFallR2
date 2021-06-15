@@ -37,8 +37,15 @@ K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 #define AT_INIT_CMD_SIZE 9
 #define TCP_INI_CMD_SIZE 2
 
+/* MQTT DEFINES */
+#define TS_MQTT_ADDR "mqtt.thingspeak.com"
+#define TS_MQTT_PORT "1883"
+#define TS_MQTT_API_KEY "AK5KGIM2JJQD40QZ"
+#define TS_MQTT_UNAME "arbName77"
+#define MQTT_INI_CMD_SIZE 5
+
 //TODO Increase the TCP Timeout
-#define TCP_TIMEOUT_S 10
+#define MQTT_TIMEOUT_S 10
 #define NETWORK_TIMEOUT_S 60
 
 /**
@@ -75,6 +82,14 @@ char tcpSetupCommands[TCP_INI_CMD_SIZE][128] = {
     "AT+USOCR=6\r",
     "AT+USOCO=0,\"" HOME_PC_IP "\",4011\r"};
 
+/* MQTT Connection Setup */
+char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
+    "AT+CPSMS=0\r",
+    "AT+CEDRXS=0\r",
+    "AT+UMQTT=2,\"" TS_MQTT_ADDR "\", " TS_MQTT_PORT "\r",
+    "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_API_KEY "\"\r",
+    "AT+UMQTTC=1\r"};
+
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
@@ -85,7 +100,7 @@ void thread_modem_ctrl(void)
 {
 //Begin modem power sequnce
 restart_modem:
-    tcpConnected = false;
+    mqttConnected = false;
     //Config Modem GPIO Pins
     if (modem_config_pins() != 0)
     {
@@ -116,10 +131,10 @@ restart_modem:
 
     short connectionAttempts = 0;
 //Establish TCP Connection to specified server
-reconnect_tcp:
-    if (!modem_tcp_init())
+reconnect_MQTT:
+    if (!modem_mqtt_init())
     {
-        LOG_WRN("Error Connecting to TCP Server, Trying Again");
+        LOG_WRN("Error Connecting to MQTT");
         //Unable Modem R/W
         k_sem_give(&modemSendSem);
         k_sem_give(&modemRecSem);
@@ -134,40 +149,39 @@ reconnect_tcp:
         else
         {
             //Attemp to recoonect
-            goto reconnect_tcp;
+            goto reconnect_MQTT;
         }
     }
 
-    tcpConnected = true;
+    mqttConnected = true;
 
-    struct sensor_data sensorData = {0};
+    //struct sensor_data sensorData = {0};
     char sendBuffer[128];
-    char tempBuffer[64];
+    //char tempBuffer[64];
 
     //Network Ready
     while (1)
     {
         /* Receive Data from sensor message queue */
-        if (k_sem_take(&modemSendSem, K_SECONDS(TCP_TIMEOUT_S)) == 0)
+        if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
+            /* Updates Turbidity Field on thingspeak, with const val 0 */
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/GRK3OCBL52OO3TGB", "0");
+            //1. Publish Turbidity
+            //2. Publish Battery Data
+            //3. Publish Longitute - GPS
+            //4. Publish Latitude - GPS
 
-            if (k_msgq_get(&sensor_msgq, &sensorData, K_SECONDS(5)) == 0)
-            {
-                /*Convert sensor data to string format*/
-                snprintk(tempBuffer, 40, "[Temp:%.2fC Roll:%.2f Pitch:%.2f]", sensorData.ambientTemperature, sensorData.roll, sensorData.pitch);
-                //AT+USOWR=0,X : where X is length of data.
-                snprintk(sendBuffer, 64, "AT+USOWR=0,%d,\"%s\"\r", strlen(tempBuffer), tempBuffer);
-            }
-
+            //Subscribe to configuration option fields, and read any messages from broker.
             modem_uart_tx(sendBuffer);
             k_sem_give(&modemRecSem);
             k_msleep(500);
         }
         else
         {
-            //TCP Error, attempt to re-establish connection.
-            tcpConnected = false;
-            goto reconnect_tcp;
+            //MQTT Error, attempt to re-establish connection.
+            mqttConnected = false;
+            goto reconnect_MQTT;
         }
 
         //TODO and print RSSI Value.
@@ -244,24 +258,25 @@ bool modem_network_init(void)
 }
 
 /**
- * @brief Attempts to connect to the TCP address defined in the tcpSetupCommands array.
- *          Returns true if successfully connected, else the caller function will
- *          just to a 'goto' to restablish tcp connection. 
  * 
+ * @brief Attempts to connect to the MQTT Broker defined in the mqttSetupCommands array.
+ *          Returns true if successfully connected, else the caller function will
+ *          jump to a 'goto' to restablish connection.
+ *
  * @return true Connection success.
  * @return false Connection failed.
  */
-bool modem_tcp_init(void)
+bool modem_mqtt_init(void)
 {
-    for (int i = 0; i < TCP_INI_CMD_SIZE; ++i)
+    for (int i = 0; i < MQTT_INI_CMD_SIZE; ++i)
     {
 
-        if (k_sem_take(&modemSendSem, K_SECONDS(TCP_TIMEOUT_S)) == 0)
+        if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
-            modem_uart_tx(tcpSetupCommands[i]);
+            modem_uart_tx(mqttSetupCommands[i]);
             k_sem_give(&modemRecSem);
 
-            if (k_sem_take(&modemCommandOkSem, K_SECONDS(TCP_TIMEOUT_S)) != 0)
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(MQTT_TIMEOUT_S)) != 0)
             {
                 //Modem response was not OK, or was timed out;
                 return false;
@@ -276,6 +291,7 @@ bool modem_tcp_init(void)
     //All commands returned OK and the modemSendSem  was released
     return true;
 }
+//!
 
 /**
  * @brief Send an AT command to the modem using the uart interface

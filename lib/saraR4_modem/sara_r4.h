@@ -22,7 +22,7 @@
 /* ==================================================================== */
 /* ===============================GLOBALS============================== */
 /* ==================================================================== */
-extern bool tcpConnected;
+extern bool mqttConnected;
 
 /* ==================================================================== */
 /* ==============================MODEM PINS============================ */
@@ -85,6 +85,6 @@ void mdm_receiver_flush(const struct device *uart_device);
 
 bool modem_network_init(void);
 
-bool modem_tcp_init(void);
+bool modem_mqtt_init(void);
 
 #endif
