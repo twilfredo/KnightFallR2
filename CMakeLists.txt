@@ -14,6 +14,7 @@ include_directories(inc/
                     lib/sam_m8q_gps/
                     lib/sensors_custom/
                     lib/tsd10/
+                    lib/sensor_pwr
                     )
 
 target_sources(app PRIVATE
@@ -25,4 +26,5 @@ target_sources(app PRIVATE
                         lib/sensors_custom/adxl343.c    #Axlero
                         lib/sensors_custom/mcp9808.c    #Temp Sens
                         lib/sensors_custom/sensors.c    #Sensor Integration Driver <-> HAL    
+                        lib/sensor_pwr/sensor_pwr.c     #Controls the PWR mosFETs for sensor power. 
              )
