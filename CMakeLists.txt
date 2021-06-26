@@ -22,7 +22,7 @@ target_sources(app PRIVATE
                         lib/saraR4_modem/sara_r4.c      #LTE-M1 Driver
                         lib/saraR4_modem/dbg_led.c      #Debug Led Thread
                         lib/sam_m8q_gps/sam_m8q.c       #GPS Module
-                        #lib/tsd10/tsd10_adc.c   
+                        lib/tsd10/tsd10_adc.c   
                         lib/sensors_custom/adxl343.c    #Axlero
                         lib/sensors_custom/mcp9808.c    #Temp Sens
                         lib/sensors_custom/sensors.c    #Sensor Integration Driver <-> HAL    

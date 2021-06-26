@@ -19,17 +19,15 @@
 /* Register Log Module */
 LOG_MODULE_REGISTER(TSD10_ADC, LOG_LEVEL_DBG);
 
-/* ADC Channel 0 Config Struct */
-const struct adc_channel_cfg channel_cfg = {
-    .channel_id = ADC_CHANNEL_0,
-    .reference = ADC_REF_INTERNAL,
-    .gain = ADC_GAIN_1,
-    .acquisition_time = ADC_ACQ_TIME(ADC_ACQ_TIME_MICROSECONDS, 40),
-    .differential = 0,
-#ifdef CONFIG_ADC_NRFX_SAADC
-    .input_positive = SAADC_CH_PSELP_PSELP_AnalogInput0 + ADC_CHANNEL_0,
-#endif
+static const struct adc_channel_cfg channel_cfg = {
+    .gain = ADC_GAIN,
+    .reference = ADC_REFERENCE,
+    .acquisition_time = ADC_ACQUISITION_TIME,
+    .channel_id = ADC_1ST_CHANNEL_ID,
+    .input_positive = ADC_1ST_CHANNEL_INPUT,
 };
+
+static int16_t sample_buffer[BUFFER_SIZE];
 
 /**
  * @brief Initialises ADC0 and 
@@ -46,30 +44,25 @@ void thread_tsd10_adc(void)
         LOG_ERR("Failed to setup ADC Channel");
     }
 
-    static int16_t sample_buffer;
-
     const struct adc_sequence sequence = {
-        /* individual channels will be added below */
-        .channels = BIT(ADC_CHANNEL_0),
-        .buffer = &sample_buffer,
-        .oversampling = 4,
-        /* buffer size in bytes, not number of samples */
+        .channels = BIT(ADC_1ST_CHANNEL_ID),
+        .buffer = sample_buffer,
         .buffer_size = sizeof(sample_buffer),
-        .resolution = 14,
-        .calibrate = true,
-        .options = NULL,
+        .resolution = ADC_RESOLUTION,
     };
-
+    int32_t mvVal = 0;
     while (1)
     {
-        // if (adc_read(adc_dev, &sequence) < 0)
-        // {
-        //     LOG_ERR("Error reading TSD10 ADC Channel");
-        // }
-        // //TODO Able to read RAW Values, Add convertion to volts.
-        // //TODO Tune ADC Reads Vals.
-        //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)
-        // //printk("Read: %d\n", sample_buffer);
-        k_msleep(5000);
+        if (adc_read(adc_dev, &sequence) < 0)
+        {
+            LOG_ERR("Error reading TSD10 ADC Channel");
+        }
+        //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)- TESTED OK NOW (?)
+        //TODO Scale TSD-10 Voltage 4.7Vpk to 3.6vPk (Input Max is 3.6 given 600mv/(1/6) = 3.6V [Vref/gain]
+        mvVal = sample_buffer[0];
+        adc_raw_to_millivolts(adc_ref_internal(adc_dev), ADC_GAIN, ADC_RESOLUTION, &mvVal);
+        //printk("Raw: %d\n", sample_buffer[0]);
+        printk("Read: %dmv\n", mvVal); //Print Voltage in mV
+        k_msleep(500);
     }
 }
