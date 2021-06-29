@@ -16,6 +16,8 @@
 #define PWR_ON 1
 #define PWR_OFF 0
 
+extern bool sensorPwrState;
+
 int init_sensor_pwr_gpio(void);
 
 int sam_m8q_pwr_on(void);

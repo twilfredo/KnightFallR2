@@ -22,7 +22,19 @@
 LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_DBG);
 
 K_MSGQ_DEFINE(sensor_msgq, sizeof(struct sensor_packet), 10, 4);
+K_MSGQ_DEFINE(turbidity_msgq, sizeof(struct sensor_packet), 10, 4);
+
 K_SEM_DEFINE(sensor_active_sem, 0, 1);
+K_SEM_DEFINE(tsd10_read_sem, 0, 1);
+
+/* TSD-10 Reading Signal */
+struct k_poll_signal tsd10_sig =
+    K_POLL_SIGNAL_INITIALIZER(tsd10_sig);
+
+struct k_poll_event tsd10_evt =
+    K_POLL_EVENT_INITIALIZER(K_POLL_TYPE_SIGNAL,
+                             K_POLL_MODE_NOTIFY_ONLY,
+                             &tsd10_sig);
 
 /* Creating subcommands (level 1 command) array for command "demo". */
 SHELL_STATIC_SUBCMD_SET_CREATE(sensors_sub,
@@ -58,15 +70,18 @@ void thread_sensor_control(void)
         {
             LOG_DBG("Active");
             //Read Request Received
-            if (turn_sensors_on())
+            //Ignore this step if power already on with sensorPwrState
+            if ((!sensorPwrState) && turn_sensors_on())
             {
                 LOG_ERR("Unable to power on sensors");
             }
-
-            //TODO Delay to compensate for ADC Settling and GPS Lock?
+            //TODO Delay to compensate for ADC Settling and GPS Lock?, Needs to be adjusted
             k_msleep(500);
 
             //TODO getTurbidity(&sensorData), getGPS(&sensorData)
+
+            /* This call waits on a singal */
+            getTurbidity(&sensorData);
 
             if (k_msgq_put(&sensor_msgq, &sensorData, K_NO_WAIT) != 0)
             {
@@ -82,6 +97,34 @@ void thread_sensor_control(void)
             }
         }
     }
+}
+
+/**
+ * @brief Get the Turbidity reading from the tsd-10 driver, using a signal event
+ *          as only one value is read. Reduced stack usage as opposed to 
+ *          message queue/FIFO
+ * 
+ * @param sensorData sensor packet for the collected data to be stored into
+ */
+void getTurbidity(struct sensor_packet *sensorData)
+{
+    //This sem allows for a tsd10 adc read, see tsd10_adc.c
+    k_sem_give(&tsd10_read_sem);
+
+    if (k_poll(&tsd10_evt, 1, K_MSEC(1000)) != 0)
+    {
+        //Timeout occured
+        LOG_ERR("TSD_10 Reading timed out");
+        k_poll_signal_reset(&tsd10_sig);
+        return;
+    }
+    sensorData->turbidity = tsd10_evt.signal->result;
+    printk("ADC Read: %dmV\n", tsd10_evt.signal->result);
+    k_poll_signal_reset(&tsd10_sig);
+}
+
+void getGPS(struct sensor_packet *sensorData)
+{
 }
 
 /**

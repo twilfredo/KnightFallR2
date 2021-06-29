@@ -5,12 +5,13 @@
 /* Sensor Message Packet */
 struct sensor_packet
 {
-    int16_t turbidity;
+    int16_t turbidity; //Stored in NTUs
     int longitude, lattitude;
 };
 
 extern struct k_msgq sensor_msgq;
-extern struct k_sem sensor_active_sem;
+extern struct k_sem sensor_active_sem, tsd10_read_sem;
+extern struct k_poll_signal tsd10_sig;
 
 /* Sensor Defines */
 #define SENSOR_PWR_ON true
@@ -40,4 +41,9 @@ int cmd_sensors_off(const struct shell *shell,
 
 int cmd_sensors_single_read(const struct shell *shell,
                             size_t argc, char **argv, void *data);
+
+void getGPS(struct sensor_packet *sensorData);
+
+void getTurbidity(struct sensor_packet *sensorData);
+
 #endif

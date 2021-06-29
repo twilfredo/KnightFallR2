@@ -14,7 +14,10 @@
 #include <drivers/sensor.h>
 #include <drivers/adc.h>
 #include <logging/log.h>
+
+/* Local Includes */
 #include "tsd10_adc.h"
+#include "sensor_ctrl.h"
 
 /* Register Log Module */
 LOG_MODULE_REGISTER(TSD10_ADC, LOG_LEVEL_DBG);
@@ -51,18 +54,23 @@ void thread_tsd10_adc(void)
         .resolution = ADC_RESOLUTION,
     };
     int32_t mvVal = 0;
+
     while (1)
     {
-        if (adc_read(adc_dev, &sequence) < 0)
+        /* Taking this sem allows for the adc to aquire a reading */
+        if (k_sem_take(&tsd10_read_sem, K_FOREVER) == 0)
         {
-            LOG_ERR("Error reading TSD10 ADC Channel");
+            if (adc_read(adc_dev, &sequence) < 0)
+            {
+                LOG_ERR("Error reading TSD10 ADC Channel");
+            }
+            //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)- TESTED OK NOW (?)
+            //TODO Scale TSD-10 Voltage 4.7Vpk to 3.6vPk (Input Max is 3.6 given 600mv/(1/6) = 3.6V [Vref/gain]
+            mvVal = sample_buffer[0];
+            adc_raw_to_millivolts(adc_ref_internal(adc_dev), ADC_GAIN, ADC_RESOLUTION, &mvVal);
+            //printk("Raw: %d\n", sample_buffer[0]);
+            //printk("Sent: %dmv\n", mvVal); //Print Voltage in mV
+            k_poll_signal_raise(&tsd10_sig, mvVal);
         }
-        //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)- TESTED OK NOW (?)
-        //TODO Scale TSD-10 Voltage 4.7Vpk to 3.6vPk (Input Max is 3.6 given 600mv/(1/6) = 3.6V [Vref/gain]
-        mvVal = sample_buffer[0];
-        adc_raw_to_millivolts(adc_ref_internal(adc_dev), ADC_GAIN, ADC_RESOLUTION, &mvVal);
-        //printk("Raw: %d\n", sample_buffer[0]);
-        printk("Read: %dmv\n", mvVal); //Print Voltage in mV
-        k_msleep(500);
     }
 }

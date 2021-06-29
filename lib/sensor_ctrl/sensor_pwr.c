@@ -17,6 +17,7 @@
 #include "sensor_pwr.h"
 
 LOG_MODULE_REGISTER(sensor_pwr, LOG_LEVEL_DBG);
+bool sensorPwrState = false;
 
 /**
  * @brief Turne all sensors on
@@ -25,7 +26,15 @@ LOG_MODULE_REGISTER(sensor_pwr, LOG_LEVEL_DBG);
  */
 int turn_sensors_on(void)
 {
+
+    if (sensorPwrState)
+    {
+        LOG_WRN("Sensors already On");
+        return 0;
+    }
+
     LOG_DBG("Sensors On");
+    sensorPwrState = true;
     int err1 = tsd_10_pwr_on();
     int err = sam_m8q_pwr_on();
     //Zero on succes, both must be zero
@@ -39,7 +48,15 @@ int turn_sensors_on(void)
  */
 int turn_sensors_off(void)
 {
+
+    if (!sensorPwrState)
+    {
+        LOG_WRN("Sensors already Off");
+        return 0;
+    }
+
     LOG_DBG("Sensors Off");
+    sensorPwrState = false;
     int err1 = tsd_10_pwr_off();
     int err = sam_m8q_pwr_off();
     //Zero on succes, both must be zero
