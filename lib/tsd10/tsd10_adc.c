@@ -66,6 +66,7 @@ void thread_tsd10_adc(void)
             }
             //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)- TESTED OK NOW (?)
             //TODO Scale TSD-10 Voltage 4.7Vpk to 3.6vPk (Input Max is 3.6 given 600mv/(1/6) = 3.6V [Vref/gain]
+            //TODO Add voltage mV conversion and update the signal with NTUs.
             mvVal = sample_buffer[0];
             adc_raw_to_millivolts(adc_ref_internal(adc_dev), ADC_GAIN, ADC_RESOLUTION, &mvVal);
             //printk("Raw: %d\n", sample_buffer[0]);
