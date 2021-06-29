@@ -19,10 +19,12 @@
 
 #include "dbg_led.h"
 #include "sara_r4.h"
-#include "sensors_custom.h"
+//#include "sensors_custom.h"
 #include "sam_m8q.h"
 #include "tsd10_adc.h"
 
+//Todo Remove Later, main thread does not need to communicate with sensors.
+#include "sensor_ctrl.h"
 #include "sensor_pwr.h"
 
 /* Compile Time Threads - These threads start runtime after the delay specified, else at ~t=0 */
@@ -37,6 +39,7 @@ K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, 
 /* TSD-10 ADC Thread */
 //! Enable CMAKE COMPILE FOR THIS FILE WHEN TESTING
 //K_THREAD_DEFINE(tsd10_adc, STACK_SIZE_TSD_THREAD, thread_tsd10_adc, NULL, NULL, NULL, THREAD_PRIORITY_TSD_THREAD, 0, 50);
+K_THREAD_DEFINE(sensor_ctrl, STACK_SIZE_SENSOR_CTRL, thread_sensor_control, NULL, NULL, NULL, PRIORITY_SENSOR_CTRL, 0, 50);
 
 /* GPS Communications Thread */
 
@@ -49,4 +52,14 @@ void main(void)
 {
     /* Start USB Driver */
     usb_enable(NULL);
+
+    //!
+    struct sensor_packet sensorDataRec = {0};
+    while (1)
+    {
+        //k_sem_give(&sensor_active_sem);
+        k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
+        printk("Rec: Turb %d Long %d\n", sensorDataRec.turbidity, sensorDataRec.longitude);
+    }
+    //!
 }

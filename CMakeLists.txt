@@ -12,9 +12,9 @@ project(uqdrifter)
 include_directories(inc/
                     lib/saraR4_modem/
                     lib/sam_m8q_gps/
-                    lib/sensors_custom/
+                    #lib/sensors_custom/
                     lib/tsd10/
-                    lib/sensor_pwr
+                    lib/sensor_ctrl/
                     )
 
 target_sources(app PRIVATE
@@ -25,6 +25,7 @@ target_sources(app PRIVATE
                         lib/tsd10/tsd10_adc.c   
                         lib/sensors_custom/adxl343.c    #Axlero
                         lib/sensors_custom/mcp9808.c    #Temp Sens
-                        lib/sensors_custom/sensors.c    #Sensor Integration Driver <-> HAL    
-                        lib/sensor_pwr/sensor_pwr.c     #Controls the PWR mosFETs for sensor power. 
+                        #lib/sensors_custom/sensors.c    #Sensor Integration Driver <-> HAL    
+                        lib/sensor_ctrl/sensor_pwr.c    #Controls the PWR mosFETs for sensor power
+                        lib/sensor_ctrl/sensor_ctrl.c   #Sensor HAL (Abstraction driver for controlling sensors)
              )

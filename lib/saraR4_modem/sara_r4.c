@@ -24,7 +24,7 @@
 #include <logging/log.h>
 #include <sys/ring_buffer.h>
 #include "sara_r4.h"
-#include "sensors_custom.h"
+//#include "sensors_custom.h"
 
 //UART RING BUFFERS
 #define RING_BUF_SIZE (64 * 2)
