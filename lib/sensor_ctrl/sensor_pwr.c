@@ -18,6 +18,8 @@
 
 LOG_MODULE_REGISTER(sensor_pwr, LOG_LEVEL_DBG);
 bool sensorPwrState = false;
+bool tsdPwrState = false;
+bool gpsPwrState = false;
 
 /**
  * @brief Turne all sensors on
@@ -94,6 +96,12 @@ int init_sensor_pwr_gpio(void)
  */
 int sam_m8q_pwr_on(void)
 {
+    if (gpsPwrState)
+    {
+        LOG_WRN("GPS Already ON");
+        return -1;
+    }
+
     const struct device *gpio = device_get_binding(GPIO_FET);
     int err = gpio_pin_configure(gpio, SAM_M8Q_PWR_PIN, GPIO_OUTPUT_INACTIVE);
     int err1 = gpio_pin_set(gpio, SAM_M8Q_PWR_PIN, PWR_ON);
@@ -103,7 +111,7 @@ int sam_m8q_pwr_on(void)
         LOG_ERR("Error configuring GPIO SAM_M8Q");
         return -1;
     }
-
+    gpsPwrState = true;
     return 0;
 }
 
@@ -114,6 +122,13 @@ int sam_m8q_pwr_on(void)
  */
 int tsd_10_pwr_on(void)
 {
+
+    if (tsdPwrState)
+    {
+        LOG_WRN("TSD_10 Already ON");
+        return -1;
+    }
+
     const struct device *gpio = device_get_binding(GPIO_FET);
     int err = gpio_pin_configure(gpio, TSD_10_PWR_PIN, GPIO_OUTPUT_INACTIVE);
     int err1 = gpio_pin_set(gpio, TSD_10_PWR_PIN, PWR_ON);
@@ -123,7 +138,7 @@ int tsd_10_pwr_on(void)
         LOG_ERR("Error configuring GPIO TSD_10");
         return -1;
     }
-
+    tsdPwrState = true;
     return 0;
 }
 
@@ -134,6 +149,11 @@ int tsd_10_pwr_on(void)
  */
 int sam_m8q_pwr_off(void)
 {
+    if (!gpsPwrState)
+    {
+        LOG_WRN("GPS Already OFF");
+        return -1;
+    }
     const struct device *gpio = device_get_binding(GPIO_FET);
     int err = gpio_pin_set(gpio, SAM_M8Q_PWR_PIN, PWR_OFF);
     int err1 = gpio_pin_configure(gpio, SAM_M8Q_PWR_PIN, GPIO_DISCONNECTED);
@@ -143,7 +163,7 @@ int sam_m8q_pwr_off(void)
         LOG_ERR("Error configuring GPIO SAM_M8Q");
         return -1;
     }
-
+    gpsPwrState = false;
     return 0;
 }
 
@@ -154,6 +174,13 @@ int sam_m8q_pwr_off(void)
  */
 int tsd_10_pwr_off(void)
 {
+
+    if (!tsdPwrState)
+    {
+        LOG_WRN("TSD_10 Already OFF");
+        return -1;
+    }
+
     const struct device *gpio = device_get_binding(GPIO_FET);
     int err = gpio_pin_set(gpio, TSD_10_PWR_PIN, PWR_OFF);
     int err1 = gpio_pin_configure(gpio, TSD_10_PWR_PIN, GPIO_DISCONNECTED);
@@ -163,6 +190,6 @@ int tsd_10_pwr_off(void)
         LOG_ERR("Error configuring GPIO TSD_10");
         return -1;
     }
-
+    tsdPwrState = false;
     return 0;
 }

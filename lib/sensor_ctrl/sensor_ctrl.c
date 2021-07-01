@@ -40,10 +40,18 @@ struct k_poll_event tsd10_evt =
 SHELL_STATIC_SUBCMD_SET_CREATE(sensors_sub,
                                SHELL_CMD(single_read, NULL, "Turn sensors on, and attain reading then turn them off",
                                          cmd_sensors_single_read),
-                               SHELL_CMD(pwr_on, NULL, "Turn sensors on",
+                               SHELL_CMD(pwr_on, NULL, "Turn sensors On",
                                          cmd_sensors_on),
-                               SHELL_CMD(pwr_off, NULL, "Turn sensors off",
+                               SHELL_CMD(pwr_off, NULL, "Turn sensors Off",
                                          cmd_sensors_off),
+                               SHELL_CMD(gps_pwr_on, NULL, "Power SAM-M8Q On",
+                                         cmd_gps_on),
+                               SHELL_CMD(gps_pwr_off, NULL, "Power SAM-M8Q On",
+                                         cmd_gps_off),
+                               SHELL_CMD(tsd_pwr_on, NULL, "Power TSD-10 On",
+                                         cmd_tsd_on),
+                               SHELL_CMD(tsd_pwr_off, NULL, "Power TSD-10 Off",
+                                         cmd_tsd_off),
                                SHELL_SUBCMD_SET_END);
 
 /* Creating root (level 0) command "demo" */
@@ -191,5 +199,89 @@ int cmd_sensors_on(const struct shell *shell,
     ARG_UNUSED(data);
 
     turn_sensors_on();
+    return 0;
+}
+
+/**
+ * @brief Manually power on tsd10
+ * 
+ * @param shell unused
+ * @param argc unused
+ * @param argv unused
+ * @param data unused
+ * @return int 0 on completion
+ */
+int cmd_tsd_on(const struct shell *shell,
+               size_t argc, char **argv, void *data)
+{
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+    ARG_UNUSED(shell);
+    ARG_UNUSED(data);
+
+    tsd_10_pwr_on();
+    return 0;
+}
+
+/**
+ * @brief Manually power off tsd10
+ * 
+ * @param shell unused
+ * @param argc unused
+ * @param argv unused
+ * @param data unused
+ * @return int 0 on completion
+ */
+int cmd_tsd_off(const struct shell *shell,
+                size_t argc, char **argv, void *data)
+{
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+    ARG_UNUSED(shell);
+    ARG_UNUSED(data);
+
+    tsd_10_pwr_off();
+    return 0;
+}
+
+/**
+ * @brief Manually power on SAM-M8Q GPS
+ * 
+ * @param shell unused
+ * @param argc unused
+ * @param argv unused
+ * @param data unused
+ * @return int 0 on completion
+ */
+int cmd_gps_on(const struct shell *shell,
+               size_t argc, char **argv, void *data)
+{
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+    ARG_UNUSED(shell);
+    ARG_UNUSED(data);
+
+    sam_m8q_pwr_on();
+    return 0;
+}
+
+/**
+ * @brief Manually power off SAM-M8Q GPS
+ * 
+ * @param shell unused
+ * @param argc unused
+ * @param argv unused
+ * @param data unused
+ * @return int 0 on completion
+ */
+int cmd_gps_off(const struct shell *shell,
+                size_t argc, char **argv, void *data)
+{
+    ARG_UNUSED(argc);
+    ARG_UNUSED(argv);
+    ARG_UNUSED(shell);
+    ARG_UNUSED(data);
+
+    sam_m8q_pwr_off();
     return 0;
 }

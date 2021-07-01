@@ -39,6 +39,18 @@ int cmd_sensors_on(const struct shell *shell,
 int cmd_sensors_off(const struct shell *shell,
                     size_t argc, char **argv, void *data);
 
+int cmd_tsd_off(const struct shell *shell,
+                size_t argc, char **argv, void *data);
+
+int cmd_tsd_on(const struct shell *shell,
+               size_t argc, char **argv, void *data);
+
+int cmd_gps_off(const struct shell *shell,
+                size_t argc, char **argv, void *data);
+
+int cmd_gps_on(const struct shell *shell,
+               size_t argc, char **argv, void *data);
+
 int cmd_sensors_single_read(const struct shell *shell,
                             size_t argc, char **argv, void *data);
 
