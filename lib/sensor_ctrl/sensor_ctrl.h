@@ -5,7 +5,7 @@
 /* Sensor Message Packet */
 struct sensor_packet
 {
-    int16_t turbidity; //Stored in NTUs
+    float turbidity; //Stored in NTUs
     int longitude, lattitude;
 };
 

@@ -38,4 +38,6 @@
 /* ==================================================================== */
 void thread_tsd10_adc(void);
 
+float millivolts_to_NTU(int mV);
+
 #endif

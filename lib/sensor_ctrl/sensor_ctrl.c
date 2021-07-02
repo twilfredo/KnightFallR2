@@ -72,14 +72,12 @@ void thread_sensor_control(void)
         LOG_DBG("Idle");
 
         //TODO A way to request data from this thread (Will power on sensors and get data, until shutdown received)
-        sensorData.turbidity++;
-
+        //Thread is active when this sem is attained.
         if (k_sem_take(&sensor_active_sem, K_FOREVER) == 0)
         {
             LOG_DBG("Active");
             //Read Request Received
-            //Ignore this step if power already on with sensorPwrState
-            if ((!sensorPwrState) && turn_sensors_on())
+            if (turn_sensors_on())
             {
                 LOG_ERR("Unable to power on sensors");
             }
@@ -94,6 +92,7 @@ void thread_sensor_control(void)
             if (k_msgq_put(&sensor_msgq, &sensorData, K_NO_WAIT) != 0)
             {
                 k_msgq_purge(&sensor_msgq); //Make Space
+                //TODO Attempt to put it here again?
             }
 
             //Clear current data, queue is pass by copy not reference
@@ -126,13 +125,15 @@ void getTurbidity(struct sensor_packet *sensorData)
         k_poll_signal_reset(&tsd10_sig);
         return;
     }
+    //Save turbidity into respective field in sensor data packet
     sensorData->turbidity = tsd10_evt.signal->result;
-    printk("ADC Read: %dmV\n", tsd10_evt.signal->result);
+    printk("NTUs: %0.2f\n", sensorData->turbidity);
     k_poll_signal_reset(&tsd10_sig);
 }
 
 void getGPS(struct sensor_packet *sensorData)
 {
+    //TODO Get GPS Coords
 }
 
 /**

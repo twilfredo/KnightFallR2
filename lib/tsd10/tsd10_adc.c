@@ -46,7 +46,7 @@ void thread_tsd10_adc(void)
     {
         LOG_ERR("Failed to setup ADC Channel");
     }
-
+    //TODO ADC Deinit Function
     const struct adc_sequence sequence = {
         .channels = BIT(ADC_1ST_CHANNEL_ID),
         .buffer = sample_buffer,
@@ -71,7 +71,38 @@ void thread_tsd10_adc(void)
             adc_raw_to_millivolts(adc_ref_internal(adc_dev), ADC_GAIN, ADC_RESOLUTION, &mvVal);
             //printk("Raw: %d\n", sample_buffer[0]);
             //printk("Sent: %dmv\n", mvVal); //Print Voltage in mV
-            k_poll_signal_raise(&tsd10_sig, mvVal);
+            k_poll_signal_raise(&tsd10_sig, millivolts_to_NTU(mvVal));
+            //printk("NTUs: %0.2f\n", millivolts_to_NTU(mvVal));
         }
     }
+}
+
+/**
+ * @brief Takes in an ADC reading in mV and return an NTU value that represents the approximate
+ *          turbidity of a solution. Conversion equation is derived from the TSD-10 datasheet 
+ *          curve fit. 
+ * 
+ * @note Approximated convertion equation dervived using parabolic curve fitting to the dataset
+ *       f(x) = 0.000314577x^2 − 2.85578x + 6202.72
+ * 
+ * @param mV value to the converted in to NTUs
+ * @return int respective NTU value. 
+ */
+float millivolts_to_NTU(int mV)
+{
+    if (mV < 800)
+    {
+        //Edge Case 1, Sensor Limit
+        return 4000.0;
+    }
+
+    if (mV > 3600)
+    {
+        //Edge Case 2, MAX ADC
+        return 0.0;
+    }
+    float coef1 = 0.000314577 * mV * mV;
+    float coef2 = 2.85578 * mV;
+
+    return coef1 - coef2 + 6202.72;
 }

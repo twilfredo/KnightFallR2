@@ -59,7 +59,7 @@ void main(void)
     {
         //k_sem_give(&sensor_active_sem);
         k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
-        printk("Rec: Turb %d Long %d\n", sensorDataRec.turbidity, sensorDataRec.longitude);
+        //printk("Rec: Turb %d Long %d\n", sensorDataRec.turbidity, sensorDataRec.longitude);
     }
     //!
 }
