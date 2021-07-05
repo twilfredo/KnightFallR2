@@ -19,10 +19,10 @@
 #include "sensor_ctrl.h"
 #include "sensor_pwr.h"
 
-LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_INF);
 
 K_MSGQ_DEFINE(sensor_msgq, sizeof(struct sensor_packet), 10, 4);
-K_MSGQ_DEFINE(turbidity_msgq, sizeof(struct sensor_packet), 10, 4);
+//K_MSGQ_DEFINE(turbidity_msgq, sizeof(struct sensor_packet), 10, 4);
 
 K_SEM_DEFINE(sensor_active_sem, 0, 1);
 K_SEM_DEFINE(tsd10_read_sem, 0, 1);
@@ -64,7 +64,6 @@ SHELL_CMD_REGISTER(sensor_ctrl, &sensors_sub, "Sensor Control", NULL);
  */
 void thread_sensor_control(void)
 {
-    //init_sensor_pwr_gpio();
     struct sensor_packet sensorData = {0};
 
     while (1)
@@ -127,7 +126,7 @@ void getTurbidity(struct sensor_packet *sensorData)
     }
     //Save turbidity into respective field in sensor data packet
     sensorData->turbidity = tsd10_evt.signal->result;
-    printk("NTUs: %0.2f\n", sensorData->turbidity);
+    //printk("NTUs: %d\n", sensorData->turbidity);
     k_poll_signal_reset(&tsd10_sig);
 }
 

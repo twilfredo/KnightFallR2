@@ -10,6 +10,8 @@
 #ifndef SARA_R4_C
 #define SARA_R4_C
 
+#include "sensor_ctrl.h"
+
 /* ==================================================================== */
 /* ==============================THREAD DEFINES======================== */
 /* ==================================================================== */
@@ -17,12 +19,13 @@
 #define STACK_SIZE_MODEM_THREAD 4096
 
 /* Debug Thread Priority */
-#define THREAD_PRIORITY_MODEM -1 /* Lower Numerics has higher priority, -Ve Priorities are cooperitive threads, +Ve Priorities  are Preemtible  */
+#define THREAD_PRIORITY_MODEM 1 /* Lower Numerics has higher priority, -Ve Priorities are cooperitive threads, +Ve Priorities  are Preemtible  */
 
 /* ==================================================================== */
 /* ===============================GLOBALS============================== */
 /* ==================================================================== */
 extern bool mqttConnected;
+extern struct k_msgq to_network_msgq;
 
 /* ==================================================================== */
 /* ==============================MODEM PINS============================ */
@@ -61,6 +64,9 @@ extern bool mqttConnected;
 #define ANT_UFLn_GPIO_FLAGS DT_GPIO_FLAGS(DT_INST(0, skyworks_sky13351), vctl1_gpios)
 #define ANT_UFLn_GPIO_PIN DT_GPIO_PIN(DT_INST(0, skyworks_sky13351), vctl1_gpios)
 
+/* Sensor Data */
+#define SD_LEN 12
+
 /* ==================================================================== */
 /* ==============================UART-PORT1============================ */
 /* ==================================================================== */
@@ -86,5 +92,7 @@ void mdm_receiver_flush(const struct device *uart_device);
 bool modem_network_init(void);
 
 bool modem_mqtt_init(void);
+
+void update_sensor_buffers(struct sensor_packet *sensorData);
 
 #endif

@@ -23,15 +23,22 @@
 #include <drivers/gpio.h>
 #include <logging/log.h>
 #include <sys/ring_buffer.h>
+
+#include "sensor_ctrl.h"
 #include "sara_r4.h"
 //#include "sensors_custom.h"
+
+LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
 //UART RING BUFFERS
 #define RING_BUF_SIZE (64 * 2)
 uint8_t rb_buf[RING_BUF_SIZE];
 struct ring_buf rx_rb;
 
-LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
+//SENSOR DATA STRING BUFFERS
+char turbidity[SD_LEN];
+char longitude[SD_LEN];
+char lattitude[SD_LEN];
 
 /* Modem Send/Rec Semaphore */
 K_SEM_DEFINE(modemSendSem, 1, 1);
@@ -56,6 +63,8 @@ K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 #define MQTT_TIMEOUT_S 10
 #define NETWORK_TIMEOUT_S 60
 
+//TODO 1. Modem Sleep Function -> CFUN0
+//TODO 2. Modem Wake Function   -> CFUN1 i think
 /**
  * @brief The following array contains modem initialization AT commands.
  *        1. Turn Echo Off.
@@ -144,7 +153,7 @@ reconnect_MQTT:
         k_sem_give(&modemRecSem);
         connectionAttempts++;
 
-        if (connectionAttempts >= 10)
+        if (connectionAttempts >= 2)
         {
             //Multiple Connection attempst failed, powercycle modem
             LOG_ERR("Too Many Connection Attempts, Restarting Modem");
@@ -162,33 +171,40 @@ reconnect_MQTT:
     //struct sensor_data sensorData = {0};
     char sendBuffer[128];
     //char tempBuffer[64];
-
+    struct sensor_packet sensorDataRec = {0};
     //Network Ready
     while (1)
     {
+        /* Waits to receive sensor data from main thread */
+        k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER);
+        update_sensor_buffers(&sensorDataRec);
+
         /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
-            /* Updates Turbidity Field on thingspeak, with const val 0 */
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", "22");
+            /* Updates Turbidity Field on thingspeak */
+            //snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", "22");
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", turbidity);
+            // LOG_DBG("MQTT -> Turb %sNTU, Longitute %s, Lattitude %s", turbidity, longitude, lattitude);
             //1. Publish Turbidity
-            //2. Publish Battery Data
-            //3. Publish Longitute - GPS
-            //4. Publish Latitude - GPS
+            //2. Publish Longitute - GPS
+            //3. Publish Latitude - GPS
 
             //Subscribe to configuration option fields, and read any messages from broker.
             modem_uart_tx(sendBuffer);
             k_sem_give(&modemRecSem);
-            k_msleep(500);
+            //k_msleep(500);
             //TODO: Merge to master branch once completed pub/sub
         }
         else
         {
             //MQTT Error, attempt to re-establish connection.
             mqttConnected = false;
+            memset(&sensorDataRec, 0, sizeof sensorDataRec);
             goto reconnect_MQTT;
         }
 
+        memset(&sensorDataRec, 0, sizeof sensorDataRec);
         //TODO and print RSSI Value.
         //modem_uart_tx("AT+CESQ\r");
     }
@@ -549,6 +565,24 @@ int modem_pin_init(void)
     //R4 Zephyr Driver Does this for some reason.
     gpio_pin_configure(gpio_dev, SARA_PWR_PIN, GPIO_INPUT);
 
-    LOG_INF("... Done!");
+    LOG_INF("MODEM PWR -> OK");
     return 0;
+}
+
+/**
+ * @brief Updates the string sensor buffers (globally defined) that are used 
+ *          to post data to MQTT
+ * 
+ * @param sensorData ptr to a sensor packet containing data to update internal
+ *          buffers with.
+ */
+void update_sensor_buffers(struct sensor_packet *sensorData)
+{
+    memset(turbidity, 0, sizeof turbidity);
+    memset(longitude, 0, sizeof longitude);
+    memset(lattitude, 0, sizeof lattitude);
+
+    snprintf(turbidity, SD_LEN, "%d", sensorData->turbidity);
+    snprintf(longitude, SD_LEN, "%d", sensorData->longitude);
+    snprintf(lattitude, SD_LEN, "%d", sensorData->lattitude);
 }

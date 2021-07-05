@@ -20,7 +20,7 @@
 #include "sensor_ctrl.h"
 
 /* Register Log Module */
-LOG_MODULE_REGISTER(TSD10_ADC, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(TSD10_ADC, LOG_LEVEL_INF);
 
 static const struct adc_channel_cfg channel_cfg = {
     .gain = ADC_GAIN,
@@ -64,15 +64,12 @@ void thread_tsd10_adc(void)
             {
                 LOG_ERR("Error reading TSD10 ADC Channel");
             }
-            //TODO Reading ADC affects modem init (Use sem to only read ADC when modem isn't busy powering)- TESTED OK NOW (?)
-            //TODO Scale TSD-10 Voltage 4.7Vpk to 3.6vPk (Input Max is 3.6 given 600mv/(1/6) = 3.6V [Vref/gain]
-            //TODO Add voltage mV conversion and update the signal with NTUs.
             mvVal = sample_buffer[0];
             adc_raw_to_millivolts(adc_ref_internal(adc_dev), ADC_GAIN, ADC_RESOLUTION, &mvVal);
-            //printk("Raw: %d\n", sample_buffer[0]);
+            LOG_DBG("ADC Read: %dmV\n", mvVal);
             //printk("Sent: %dmv\n", mvVal); //Print Voltage in mV
-            k_poll_signal_raise(&tsd10_sig, millivolts_to_NTU(mvVal));
             //printk("NTUs: %0.2f\n", millivolts_to_NTU(mvVal));
+            k_poll_signal_raise(&tsd10_sig, millivolts_to_NTU(mvVal));
         }
     }
 }
@@ -101,6 +98,7 @@ float millivolts_to_NTU(int mV)
         //Edge Case 2, MAX ADC
         return 0.0;
     }
+
     float coef1 = 0.000314577 * mV * mV;
     float coef2 = 2.85578 * mV;
 

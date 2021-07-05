@@ -27,14 +27,18 @@
 #include "sensor_ctrl.h"
 #include "sensor_pwr.h"
 
+LOG_MODULE_REGISTER(device_ctrl_main, LOG_LEVEL_DBG);
+
+K_MSGQ_DEFINE(to_network_msgq, sizeof(struct sensor_packet), 10, 4);
+
 /* Compile Time Threads - These threads start runtime after the delay specified, else at ~t=0 */
 /* Aux Threads */
 K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
 //K_THREAD_DEFINE(sensor_driver, STACK_SIZE_SENSORS, thread_sensors, NULL, NULL, NULL, THREAD_PRIORITY_SENSORS, 0, 10);
 
 /* Network Threads - Modem */
-//K_THREAD_DEFINE(modem_send, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
-//K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
+K_THREAD_DEFINE(modem_send, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
+K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
 
 /* TSD-10 ADC Thread */
 //! Enable CMAKE COMPILE FOR THIS FILE WHEN TESTING
@@ -47,19 +51,35 @@ K_THREAD_DEFINE(sensor_ctrl, STACK_SIZE_SENSOR_CTRL, thread_sensor_control, NULL
  * @brief Entry thread to start the USB driver which the Shell 
  *          instance is dependant on. 
  * 
+ *        Main thread to control the sensors and the networking,
  */
 void main(void)
 {
     /* Start USB Driver */
     usb_enable(NULL);
 
-    //!
     struct sensor_packet sensorDataRec = {0};
+
     while (1)
     {
-        //k_sem_give(&sensor_active_sem);
+        //TODO Add Sequence Control, Primary Loop (Network, Read, Sleep)
+        /* 1. Get Sensor Reading */
+        k_sem_give(&sensor_active_sem);
         k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
-        //printk("Rec: Turb %d Long %d\n", sensorDataRec.turbidity, sensorDataRec.longitude);
+
+        LOG_DBG("Sensors: Turbidity %d NTUs", sensorDataRec.turbidity);
+
+        /* 2. Send Data to Network Driver */
+        if (k_msgq_put(&to_network_msgq, &sensorDataRec, K_NO_WAIT) != 0)
+        {
+            k_msgq_purge(&to_network_msgq); //Make Space
+        }
+
+        /* 3. Sleep Device */
+        //TODO Sleep Sara R4, Sleep GPS (Should do this in the sensor driver after reading is done)
+
+        //Clear current data, queue is pass by copy not reference
+        memset(&sensorDataRec, 0, sizeof sensorDataRec);
+        k_msleep(1000);
     }
-    //!
 }

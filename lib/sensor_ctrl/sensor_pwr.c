@@ -16,7 +16,7 @@
 //Local Includes
 #include "sensor_pwr.h"
 
-LOG_MODULE_REGISTER(sensor_pwr, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(sensor_pwr, LOG_LEVEL_INF);
 bool sensorPwrState = false;
 bool tsdPwrState = false;
 bool gpsPwrState = false;
