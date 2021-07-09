@@ -103,6 +103,9 @@ char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
     "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_API_KEY "\"\r",
     "AT+UMQTTC=1\r"};
 
+/* In the modem loop, this determined which field to update */
+short publishField = TBD_FIELD;
+
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
@@ -176,23 +179,48 @@ reconnect_MQTT:
     while (1)
     {
         /* Waits to receive sensor data from main thread */
-        k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER);
-        update_sensor_buffers(&sensorDataRec);
+        k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
+        //!
+        sensorDataRec.lattitude = 69;
+        sensorDataRec.longitude = 420;
+        //!
+        update_sensor_buffers(&sensorDataRec); //Updates globals sensor buffers (int to string)
 
         /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             /* Updates Turbidity Field on thingspeak */
             //snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", "22");
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", turbidity);
-            // LOG_DBG("MQTT -> Turb %sNTU, Longitute %s, Lattitude %s", turbidity, longitude, lattitude);
-            //1. Publish Turbidity
-            //2. Publish Longitute - GPS
-            //3. Publish Latitude - GPS
+            //LOG_DBG("MQTT -> Turb %sNTU, Longitute %s, Lattitude %s", turbidity, longitude, lattitude);
+            /* When the modemSendSem is taken (modem accepts command), the switch statement will toggle throught he options every iteration */
+            switch (publishField)
+            {
+            case TBD_FIELD:
+                //1. Publish Turbidity
+                snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", turbidity);
+                modem_uart_tx(sendBuffer);
+                k_sem_give(&modemRecSem);
+                publishField = LONG_FIELD;
+                break;
+            case LONG_FIELD:
+                //2. Publish Longitute - GPS
+                snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field4/94Z2J4FS3282TET3", longitude);
+                modem_uart_tx(sendBuffer);
+                k_sem_give(&modemRecSem);
+                publishField = LATT_FIELD;
+                break;
+            case LATT_FIELD:
+                //3. Publish Latitude - GPS
+                snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field3/94Z2J4FS3282TET3", lattitude);
+                modem_uart_tx(sendBuffer);
+                k_sem_give(&modemRecSem);
+                publishField = TBD_FIELD;
+                break;
+            default:
+                publishField = TBD_FIELD;
+            }
 
-            //Subscribe to configuration option fields, and read any messages from broker.
-            modem_uart_tx(sendBuffer);
-            k_sem_give(&modemRecSem);
+            //TODO: Subscribe to configuration option fields, and read any messages from broker.
             //k_msleep(500);
             //TODO: Merge to master branch once completed pub/sub
         }
@@ -205,6 +233,7 @@ reconnect_MQTT:
         }
 
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
+        memset(&sendBuffer, 0, sizeof sendBuffer);
         //TODO and print RSSI Value.
         //modem_uart_tx("AT+CESQ\r");
     }

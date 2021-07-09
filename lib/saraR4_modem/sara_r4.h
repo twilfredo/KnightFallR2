@@ -67,6 +67,10 @@ extern struct k_msgq to_network_msgq;
 /* Sensor Data */
 #define SD_LEN 12
 
+/* Modem loop switch variables for updating MQTT fields */
+#define TBD_FIELD 0x01
+#define LONG_FIELD 0x6A
+#define LATT_FIELD 0x2A
 /* ==================================================================== */
 /* ==============================UART-PORT1============================ */
 /* ==================================================================== */
