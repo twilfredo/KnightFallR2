@@ -1,4 +1,3 @@
-
 /**
  ************************************************************************
  * @file sara_r4.c
@@ -39,6 +38,7 @@ struct ring_buf rx_rb;
 char turbidity[SD_LEN];
 char longitude[SD_LEN];
 char lattitude[SD_LEN];
+char dataPacket[64];
 
 /* Modem Send/Rec Semaphore */
 K_SEM_DEFINE(modemSendSem, 1, 1);
@@ -146,7 +146,7 @@ restart_modem:
     }
 
     short connectionAttempts = 0;
-//Establish TCP Connection to specified server
+//Establish MQTT connection to ThingSpeak
 reconnect_MQTT:
     if (!modem_mqtt_init())
     {
@@ -169,56 +169,27 @@ reconnect_MQTT:
         }
     }
 
-    mqttConnected = true;
+    mqttConnected = true;                     //Control DBG_LED_COLOUR
+    char sendBuffer[128];                     //UART Packet sent to modem
+    struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
-    //struct sensor_data sensorData = {0};
-    char sendBuffer[128];
-    //char tempBuffer[64];
-    struct sensor_packet sensorDataRec = {0};
-    //Network Ready
+    /* Network Ready */
     while (1)
     {
         /* Waits to receive sensor data from main thread */
         k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
-        //!
-        sensorDataRec.lattitude = 69;
-        sensorDataRec.longitude = 420;
-        //!
-        update_sensor_buffers(&sensorDataRec); //Updates globals sensor buffers (int to string)
+
+        update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
         /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             /* Updates Turbidity Field on thingspeak */
-            //snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", "22");
-            //LOG_DBG("MQTT -> Turb %sNTU, Longitute %s, Lattitude %s", turbidity, longitude, lattitude);
-            /* When the modemSendSem is taken (modem accepts command), the switch statement will toggle throught he options every iteration */
-            switch (publishField)
-            {
-            case TBD_FIELD:
-                //1. Publish Turbidity
-                snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", turbidity);
-                modem_uart_tx(sendBuffer);
-                k_sem_give(&modemRecSem);
-                publishField = LONG_FIELD;
-                break;
-            case LONG_FIELD:
-                //2. Publish Longitute - GPS
-                snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field4/94Z2J4FS3282TET3", longitude);
-                modem_uart_tx(sendBuffer);
-                k_sem_give(&modemRecSem);
-                publishField = LATT_FIELD;
-                break;
-            case LATT_FIELD:
-                //3. Publish Latitude - GPS
-                snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field3/94Z2J4FS3282TET3", lattitude);
-                modem_uart_tx(sendBuffer);
-                k_sem_give(&modemRecSem);
-                publishField = TBD_FIELD;
-                break;
-            default:
-                publishField = TBD_FIELD;
-            }
+            //This packet in the following form [turbidityxlongitudexlattitude]
+            //Field 1 is currently selected for packet streaming.
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
+            modem_uart_tx(sendBuffer);
+            k_sem_give(&modemRecSem); //Singal modem recv thread
 
             //TODO: Subscribe to configuration option fields, and read any messages from broker.
             //k_msleep(500);
@@ -341,7 +312,6 @@ bool modem_mqtt_init(void)
     //All commands returned OK and the modemSendSem  was released
     return true;
 }
-//!
 
 /**
  * @brief Send an AT command to the modem using the uart interface
@@ -599,19 +569,15 @@ int modem_pin_init(void)
 }
 
 /**
- * @brief Updates the string sensor buffers (globally defined) that are used 
- *          to post data to MQTT
- * 
+ * @brief Updates the dataPacket (globally defined) buffer that is sent to the modem
+ *          to publish an MQTT packet to a thingspeak field. 
+ *        The created buffer is to be of the following format delimited with 'x'
+ *         [TurbidxLongxLatt]
  * @param sensorData ptr to a sensor packet containing data to update internal
  *          buffers with.
  */
 void update_sensor_buffers(struct sensor_packet *sensorData)
 {
-    memset(turbidity, 0, sizeof turbidity);
-    memset(longitude, 0, sizeof longitude);
-    memset(lattitude, 0, sizeof lattitude);
-
-    snprintf(turbidity, SD_LEN, "%d", sensorData->turbidity);
-    snprintf(longitude, SD_LEN, "%d", sensorData->longitude);
-    snprintf(lattitude, SD_LEN, "%d", sensorData->lattitude);
+    memset(dataPacket, 0, sizeof dataPacket);
+    snprintf(dataPacket, sizeof dataPacket, "%dx%dx%d", sensorData->turbidity, sensorData->longitude, sensorData->lattitude);
 }
