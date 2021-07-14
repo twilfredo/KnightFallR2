@@ -179,21 +179,24 @@ reconnect_MQTT:
         /* Waits to receive sensor data from main thread */
         k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
 
+        sensorDataRec.longitude = 1112220;
+        sensorDataRec.lattitude = 3334440; //Dummy Values
+
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
         /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             /* Updates Turbidity Field on thingspeak */
-            //This packet in the following form [turbidityxlongitudexlattitude]
+            //This packet in the following form [turbidity#longitude#lattitude]
             //Field 1 is currently selected for packet streaming.
             snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
             modem_uart_tx(sendBuffer);
             k_sem_give(&modemRecSem); //Singal modem recv thread
 
             //TODO: Subscribe to configuration option fields, and read any messages from broker.
-            //k_msleep(500);
             //TODO: Merge to master branch once completed pub/sub
+            k_sleep(K_SECONDS(THINGSPEAK_UPDATE_RATE)); //Thingspeak only updates every 15 seconds
         }
         else
         {
@@ -571,13 +574,13 @@ int modem_pin_init(void)
 /**
  * @brief Updates the dataPacket (globally defined) buffer that is sent to the modem
  *          to publish an MQTT packet to a thingspeak field. 
- *        The created buffer is to be of the following format delimited with 'x'
- *         [TurbidxLongxLatt]
+ *        The created buffer is to be of the following format delimited with '#'
+ *         [Turbid#Long#Latt]
  * @param sensorData ptr to a sensor packet containing data to update internal
  *          buffers with.
  */
 void update_sensor_buffers(struct sensor_packet *sensorData)
 {
     memset(dataPacket, 0, sizeof dataPacket);
-    snprintf(dataPacket, sizeof dataPacket, "%dx%dx%d", sensorData->turbidity, sensorData->longitude, sensorData->lattitude);
+    snprintf(dataPacket, sizeof dataPacket, "%d#%d#%d", sensorData->turbidity, sensorData->longitude, sensorData->lattitude);
 }

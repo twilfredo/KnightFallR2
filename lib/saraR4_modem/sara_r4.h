@@ -72,6 +72,7 @@ extern struct k_msgq to_network_msgq;
 #define LONG_FIELD 0x6A
 #define LATT_FIELD 0x2A
 #define NUM_PACKET_TO_SEND 3
+#define THINGSPEAK_UPDATE_RATE 13 //Seconds
 /* ==================================================================== */
 /* ==============================UART-PORT1============================ */
 /* ==================================================================== */
