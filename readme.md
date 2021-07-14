@@ -9,6 +9,12 @@ soil from catchment areas down to Morton Bay.
 The monitoring data provided by the drifter such as turbidity and location, is crucial
 for deploying good mitigation strategies.
 
+## Device Interaction <br />
+The device is equipped with a shell and logging through USB. It can be accessed over micro usb with any PC, on linux the use the following to open a session
+>screen /dev/ttyACMX 115200
+
+Shell allows for specific commands to be issued to the device for debugging/testing purposes. Logging will show any crucial errors/issues. 
+
 ## Modes / Status LED <br />
 
 The drifter once it has established a network LTE-M1 connection will slowly blink purple (status led), if the device is not connected
