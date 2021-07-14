@@ -9,13 +9,18 @@ soil from catchment areas down to Morton Bay.
 The monitoring data provided by the drifter such as turbidity and location, is crucial
 for deploying good mitigation strategies.
 
-## TCP Listening Guide<br />
+## Modes / Status LED <br />
 
-The home router has port forwarding active to the desktops local IP address on port 6969.
+The drifter once it has established a network LTE-M1 connection will slowly blink purple (status led), if the device is not connected
+or is attemting to connect, it will blink red at a faster rate. 
 
-Drifter connects to the public address of the modem, and sends data to port 6969. 
 
-To listen to the data sent by the modem:
-> ~$ nc -l 4011 <br />
+## Data viewing <br />
+
+The drifter will stream data to a public channel on ThingSpeak using MQTT. Due to the bandwidth limit restrictions imposed by thingspeak IO (Packet/15 Seconds), the drifter sends a '#' delimited string of data of the following format [turbidity#lattitude#longitude].  This can be viewed at the following link:
+
+>https://thingspeak.com/channels/1416495
+
+Clicking on 'export recent data', then 'JSON' is the easiest way of watching the data received onto the server. 
 
 <br />
