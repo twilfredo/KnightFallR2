@@ -47,7 +47,6 @@ K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, 
 
 /* GPS Communications Thread */
 K_THREAD_DEFINE(gps_ctrl, STACK_SIZE_GPS_THREAD, thread_gps_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_GPS, 0, 50);
-K_THREAD_DEFINE(gps_receive, STACK_SIZE_GPS_THREAD, thread_gps_receive, NULL, NULL, NULL, THREAD_PRIORITY_GPS, 0, 100);
 
 /**
  * @brief Entry thread to start the USB driver which the Shell 

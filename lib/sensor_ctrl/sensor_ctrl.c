@@ -85,6 +85,10 @@ void thread_sensor_control(void)
 
             //TODO getTurbidity(&sensorData), getGPS(&sensorData)
 
+            /* GPS Should be called before getTurbidity, as the gps lock can take an arbitrary amount of time */
+            //TODO Power each of the sensors individually
+            getGPS(&sensorData);
+
             /* This call waits on a singal */
             getTurbidity(&sensorData);
 
@@ -103,6 +107,17 @@ void thread_sensor_control(void)
             }
         }
     }
+}
+
+/**
+ * @brief Get the long and latt values from the sam-m8q driver
+ * 
+ * TODO Complete this/Add reasonable timeout.
+ * 
+ * @param sensorData sensor packet for the collected data to be stored into
+ */
+void getGps(struct sensor_packet *sensorData)
+{
 }
 
 /**

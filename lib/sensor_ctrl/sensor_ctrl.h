@@ -58,4 +58,6 @@ void getGPS(struct sensor_packet *sensorData);
 
 void getTurbidity(struct sensor_packet *sensorData);
 
+void getGps(struct sensor_packet *sensorData);
+
 #endif
