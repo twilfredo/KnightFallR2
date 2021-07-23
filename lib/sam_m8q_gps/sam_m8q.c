@@ -18,8 +18,9 @@
 #include <string.h>
 /* Local Includes */
 #include "sam_m8q.h"
+#include "sensor_ctrl.h"
 
-LOG_MODULE_REGISTER(SAM_M8Q, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(SAM_M8Q, LOG_LEVEL_INF);
 /* Inline Prototype */
 static inline void sam_m8q_uart_tx(uint8_t *data, int arrSize);
 
@@ -30,6 +31,12 @@ struct ring_buf rx_rb_sam;
 
 /* SAM Send/Rec Semaphore */
 K_SEM_DEFINE(samRecSem, 0, 1);
+
+/* GLL Data Packet Message Queue, Sends data to sensor control */
+K_MSGQ_DEFINE(gps_msgq, sizeof(struct samGLLMessage), 10, 4);
+
+/* Notifies the GPS polling thread to stop polling */
+bool gpsTimeOutOccured = false;
 
 /* Config Data Array: UBX Protocol - From uCentre*/
 // Disable NMEA String Outputs
@@ -42,7 +49,8 @@ static uint8_t cmd_vtgOff[] = {0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0xF0, 0x05, 0
 //UBX Protocol Off
 static uint8_t cmd_pvtOff[] = {0xB5, 0x62, 0x06, 0x01, 0x08, 0x00, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x17, 0xDC};
 //Set GPS output rate
-static uint8_t cmd_updateRate5Hz[] = {0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A};
+//static uint8_t cmd_updateRate5Hz[] = {0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xC8, 0x00, 0x01, 0x00, 0x01, 0x00, 0xDE, 0x6A};
+static uint8_t cmd_updateRate1Hz[] = {0xB5, 0x62, 0x06, 0x08, 0x06, 0x00, 0xE8, 0x03, 0x01, 0x00, 0x01, 0x00, 0x01, 0x39};
 
 /**
  * @brief Config SAM_M8Q module to only output data using the NMEA protocol, and to disable the typical
@@ -84,7 +92,7 @@ void sam_m8q_config(void)
     sam_m8q_uart_tx(cmd_pvtOff, sizeof cmd_pvtOff);
     k_msleep(SAM_CMD_DELAY);
     /* Set Update Rate */
-    sam_m8q_uart_tx(cmd_updateRate5Hz, sizeof cmd_updateRate5Hz);
+    sam_m8q_uart_tx(cmd_updateRate1Hz, sizeof cmd_updateRate1Hz);
 }
 
 /**
@@ -100,27 +108,39 @@ void thread_gps_ctrl(void)
     }
 
     struct samGLLMessage gllMsgPacket = {0};
-    sam_m8q_config();
+    //sam_m8q_config();
 
     while (1)
     {
-        //TODO: 1. Wait on activation semaphore
-        //TODO: 2. Configure the module to send only GLL
-        //TODO: 3. Call sam_recv()
-
-        if (k_sem_take(&samRecSem, K_SECONDS(SAM_TIMEOUT)) != 0)
+        //1. Wait on activation semaphore
+        k_sem_take(&gps_read_sem, K_FOREVER);
+        //2. Configure the module to send only GLL (Needs upon power cycle)
+        sam_m8q_config();
+        //3. Poll GPS Data for a lock.
+        do
         {
-            //TIMEOUT
-            LOG_ERR("Unable to detect 'newline' in data received.");
-        }
+            if (k_sem_take(&samRecSem, K_SECONDS(SAM_TIMEOUT)) != 0)
+            {
+                //TIMEOUT
+                LOG_ERR("Unable to detect 'newline' in data received.");
+            }
+            /* Is GPS Message Valid? */
+            if (sam_recv(&gllMsgPacket) == true)
+            {
+                /* GPS Positioning aquired */
+                // 5. Send data back to sensor control thread
+                if (k_msgq_put(&gps_msgq, &gllMsgPacket, K_NO_WAIT) != 0)
+                {
+                    k_msgq_purge(&gps_msgq);
+                    LOG_ERR("Unable to dispatch GPS data to sensor_ctrl");
+                }
+                break; //Break the for loop, message sent
+            }
+        } while (gpsTimeOutOccured == false);
 
-        if (sam_recv(&gllMsgPacket))
-        {
-            /* GPS Positioning aquired */
-        }
-
-        //TODO: 4. Parse recv string, wait till valid signal GLL Field 6 == 'A' (Lock attained)
-        //TODO: 5. Send data back to sensor control thread
+        gpsTimeOutOccured = false;
+        //Clear current data, queue is pass by copy not reference
+        memset(&gllMsgPacket, 0, sizeof gllMsgPacket);
     }
 }
 
@@ -168,7 +188,7 @@ bool sam_recv(struct samGLLMessage *gllMsgPacket)
  */
 bool sam_recv_parse(struct samGLLMessage *gllMsgPacket, char *gllMsg, int sizeofBuffer)
 {
-    //printk("%s", gllMsg);
+    printk("%s\n\r", gllMsg);
 
     char latBuffer[64];
     char latInd[64];
@@ -177,31 +197,33 @@ bool sam_recv_parse(struct samGLLMessage *gllMsgPacket, char *gllMsg, int sizeof
     char status[64];
 
     char *slice = strtok(gllMsg, ",");
+    /* Case counter represents tokens (fields) split */
     int caseCounter = 1;
 
+    /* The gllMsg string is formatted a specific way as documented by the the ublox NMEA protocol manual */
     while (slice != NULL)
     {
         switch (caseCounter)
         {
         case 2:
+            /* Latitude : Field 2 */
             strcpy(latBuffer, slice);
-
             break;
         case 3:
+            /* Latitude Indicator : Field 3*/
             strcpy(latInd, slice);
-
             break;
         case 4:
+            /* Longitude : Field 4 */
             strcpy(lonBuffer, slice);
-
             break;
         case 5:
+            /* Longitude Indicator : Field 5*/
             strcpy(lonInd, slice);
-
             break;
         case 7:
+            /* Message Validity Indicator : Field 7 */
             strcpy(status, slice);
-
             break;
         }
 
@@ -231,7 +253,7 @@ bool sam_recv_parse(struct samGLLMessage *gllMsgPacket, char *gllMsg, int sizeof
 }
 
 /**
- * @note This function is attained from stackoverflow, and is used to convert NMEA absolute positions to decimal degrees. 
+ * @note This function is a generic function attained from stackoverflow, and is used to convert NMEA absolute positions to decimal degrees. 
  * 
  * @brief Convert NMEA absolute position to decimal degrees
  *          "ddmm.mmmm" or "dddmm.mmmm" really is D+M/60,
@@ -317,7 +339,7 @@ uart_cb(const struct device *uart_device, void *user_data)
 
             if (ret != rx)
             {
-                LOG_ERR("Rx buffer doesn't have enough space. "
+                LOG_DBG("Rx buffer doesn't have enough space. "
                         "Bytes pending: %d, written: %d",
                         rx, ret);
                 sam_mdm_receiver_flush(uart_device);

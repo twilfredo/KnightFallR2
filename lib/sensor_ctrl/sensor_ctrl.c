@@ -18,14 +18,16 @@
 //Local Includes
 #include "sensor_ctrl.h"
 #include "sensor_pwr.h"
+#include "sam_m8q.h"
 
-LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_WRN);
 
 K_MSGQ_DEFINE(sensor_msgq, sizeof(struct sensor_packet), 10, 4);
 //K_MSGQ_DEFINE(turbidity_msgq, sizeof(struct sensor_packet), 10, 4);
 
 K_SEM_DEFINE(sensor_active_sem, 0, 1);
 K_SEM_DEFINE(tsd10_read_sem, 0, 1);
+K_SEM_DEFINE(gps_read_sem, 0, 1);
 
 /* TSD-10 Reading Signal */
 struct k_poll_signal tsd10_sig =
@@ -87,10 +89,10 @@ void thread_sensor_control(void)
 
             /* GPS Should be called before getTurbidity, as the gps lock can take an arbitrary amount of time */
             //TODO Power each of the sensors individually
-            getGPS(&sensorData);
+            get_gps(&sensorData);
 
             /* This call waits on a singal */
-            getTurbidity(&sensorData);
+            get_turbidity(&sensorData);
 
             if (k_msgq_put(&sensor_msgq, &sensorData, K_NO_WAIT) != 0)
             {
@@ -116,8 +118,27 @@ void thread_sensor_control(void)
  * 
  * @param sensorData sensor packet for the collected data to be stored into
  */
-void getGps(struct sensor_packet *sensorData)
+void get_gps(struct sensor_packet *sensorData)
 {
+    //TODO Get GPS Coords
+    k_sem_give(&gps_read_sem);
+
+    struct samGLLMessage gllMsgPacket = {0};
+    /* Wait for receive data from GPS thread */
+    if (k_msgq_get(&gps_msgq, &gllMsgPacket, K_SECONDS(GPS_NO_LOCK_TIMEOUT)) != 0)
+    {
+        /* MSG not received, timeout */
+        LOG_ERR("GPS No lock timeout");
+        sensorData->lattitude = GPS_NO_LOCK_VAL;
+        sensorData->longitude = GPS_NO_LOCK_VAL;
+        /* Notify the GPS polling thread to stop polling */
+        gpsTimeOutOccured = true;
+        return;
+    }
+
+    printk("REC GPS LOCK: %f  |--| %f", gllMsgPacket.lat, gllMsgPacket.lon);
+    sensorData->lattitude = gllMsgPacket.lat;
+    sensorData->longitude = gllMsgPacket.lon;
 }
 
 /**
@@ -127,7 +148,7 @@ void getGps(struct sensor_packet *sensorData)
  * 
  * @param sensorData sensor packet for the collected data to be stored into
  */
-void getTurbidity(struct sensor_packet *sensorData)
+void get_turbidity(struct sensor_packet *sensorData)
 {
     //This sem allows for a tsd10 adc read, see tsd10_adc.c
     k_sem_give(&tsd10_read_sem);
@@ -143,11 +164,6 @@ void getTurbidity(struct sensor_packet *sensorData)
     sensorData->turbidity = tsd10_evt.signal->result;
     //printk("NTUs: %d\n", sensorData->turbidity);
     k_poll_signal_reset(&tsd10_sig);
-}
-
-void getGPS(struct sensor_packet *sensorData)
-{
-    //TODO Get GPS Coords
 }
 
 /**

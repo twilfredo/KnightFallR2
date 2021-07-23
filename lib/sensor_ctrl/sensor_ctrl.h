@@ -10,7 +10,7 @@ struct sensor_packet
 };
 
 extern struct k_msgq sensor_msgq;
-extern struct k_sem sensor_active_sem, tsd10_read_sem;
+extern struct k_sem sensor_active_sem, tsd10_read_sem, gps_read_sem;
 extern struct k_poll_signal tsd10_sig;
 
 /* Sensor Defines */
@@ -54,10 +54,8 @@ int cmd_gps_on(const struct shell *shell,
 int cmd_sensors_single_read(const struct shell *shell,
                             size_t argc, char **argv, void *data);
 
-void getGPS(struct sensor_packet *sensorData);
+void get_turbidity(struct sensor_packet *sensorData);
 
-void getTurbidity(struct sensor_packet *sensorData);
-
-void getGps(struct sensor_packet *sensorData);
+void get_gps(struct sensor_packet *sensorData);
 
 #endif

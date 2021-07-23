@@ -7,6 +7,9 @@ struct samGLLMessage
     float lat, lon;
 };
 
+/* GLL Data Packet Message Queue, Sends data to sensor control */
+extern struct k_msgq gps_msgq;
+
 /* ==================================================================== */
 /* ==============================THREAD DEFINES======================== */
 /* ==================================================================== */
@@ -27,7 +30,13 @@ struct samGLLMessage
 /* ==================================================================== */
 #define SAM_CMD_DELAY 3
 #define SAM_TIMEOUT 10
+#define GPS_NO_LOCK_TIMEOUT 240
+#define GPS_POLL_TIME 190
 #define GLL_MSG_FIELDS 10
+#define GPS_NO_LOCK_VAL 1234.1234
+
+/* Notifies the GPS polling thread to stop polling */
+extern bool gpsTimeOutOccured;
 
 /* Device tree node identifier for UART0 - Connected to GPS Module*/
 #define UART0 DT_LABEL(DT_NODELABEL(uart0))
