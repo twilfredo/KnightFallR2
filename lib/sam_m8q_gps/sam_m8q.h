@@ -33,7 +33,7 @@ extern struct k_msgq gps_msgq;
 #define GPS_NO_LOCK_TIMEOUT 240
 #define GPS_POLL_TIME 190
 #define GLL_MSG_FIELDS 10
-#define GPS_NO_LOCK_VAL 1234.1234
+#define GPS_NO_LOCK_VAL 0.00
 
 /* Notifies the GPS polling thread to stop polling */
 extern bool gpsTimeOutOccured;

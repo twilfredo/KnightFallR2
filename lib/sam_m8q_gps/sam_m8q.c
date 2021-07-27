@@ -188,7 +188,7 @@ bool sam_recv(struct samGLLMessage *gllMsgPacket)
  */
 bool sam_recv_parse(struct samGLLMessage *gllMsgPacket, char *gllMsg, int sizeofBuffer)
 {
-    printk("%s\n\r", gllMsg);
+    //printk("%s\n\r", gllMsg);
 
     char latBuffer[64];
     char latInd[64];

@@ -37,8 +37,8 @@ K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, 
 //K_THREAD_DEFINE(sensor_driver, STACK_SIZE_SENSORS, thread_sensors, NULL, NULL, NULL, THREAD_PRIORITY_SENSORS, 0, 10);
 
 /* Network Threads - Modem */
-//K_THREAD_DEFINE(modem_ctrl, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
-//K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
+K_THREAD_DEFINE(modem_ctrl, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
+K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
 
 /* TSD-10 ADC Thread */
 //! Enable CMAKE COMPILE FOR THIS FILE WHEN TESTING
@@ -61,6 +61,11 @@ void main(void)
 
     struct sensor_packet sensorDataRec = {0};
 
+    /* Wait for network to init, sem given by the sara_r4.c driver */
+    LOG_INF("Waiting for network...");
+    k_sem_take(&networkReady, K_FOREVER);
+    LOG_INF("Network Ready, System Initialised");
+
     while (1)
     {
         //TODO Add Sequence Control, Primary Loop (Network, Read, Sleep)
@@ -68,7 +73,7 @@ void main(void)
         k_sem_give(&sensor_active_sem);
         k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
 
-        LOG_DBG("Sensors: Turbidity %d NTUs", sensorDataRec.turbidity);
+        printk("Sensors: Turbidity %d NTUs, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.longitude, sensorDataRec.lattitude);
 
         /* 2. Send Data to Network Driver */
         if (k_msgq_put(&to_network_msgq, &sensorDataRec, K_NO_WAIT) != 0)
@@ -81,6 +86,6 @@ void main(void)
 
         //Clear current data, queue is pass by copy not reference
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
-        k_msleep(1000);
+        k_msleep(5000);
     }
 }

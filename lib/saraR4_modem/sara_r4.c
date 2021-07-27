@@ -27,7 +27,7 @@
 #include "sara_r4.h"
 //#include "sensors_custom.h"
 
-LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_INF);
 
 //UART RING BUFFERS
 #define RING_BUF_SIZE (64 * 2)
@@ -45,6 +45,7 @@ K_SEM_DEFINE(modemSendSem, 1, 1);
 K_SEM_DEFINE(modemRecSem, 0, 1);
 K_SEM_DEFINE(modemReadOkSem, 0, 1);
 K_SEM_DEFINE(modemCommandOkSem, 0, 1);
+K_SEM_DEFINE(networkReady, 0, 1);
 
 /* Network Defines */
 #define MODEM_APN "telstra.internet"
@@ -174,13 +175,12 @@ reconnect_MQTT:
     struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
     /* Network Ready */
+    k_sem_give(&networkReady);
+
     while (1)
     {
         /* Waits to receive sensor data from main thread */
         k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
-
-        sensorDataRec.longitude = 1112220;
-        sensorDataRec.lattitude = 3334440; //Dummy Values
 
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
@@ -582,5 +582,13 @@ int modem_pin_init(void)
 void update_sensor_buffers(struct sensor_packet *sensorData)
 {
     memset(dataPacket, 0, sizeof dataPacket);
-    snprintf(dataPacket, sizeof dataPacket, "%d#%d#%d", sensorData->turbidity, sensorData->longitude, sensorData->lattitude);
+
+    if (sensorData->longitude == GPS_NO_LOCK_VAL || sensorData->lattitude == GPS_NO_LOCK_VAL)
+    {
+        snprintf(dataPacket, sizeof dataPacket, "NTU:%d##LON:NO_LOCK##LATT:NO_LOCK", sensorData->turbidity);
+    }
+    else
+    {
+        snprintf(dataPacket, sizeof dataPacket, "NTU:%d##LONG:%f##LATT:%f", sensorData->turbidity, sensorData->longitude, sensorData->lattitude);
+    }
 }

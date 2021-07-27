@@ -77,36 +77,39 @@ void thread_sensor_control(void)
         if (k_sem_take(&sensor_active_sem, K_FOREVER) == 0)
         {
             LOG_DBG("Active");
-            //Read Request Received
-            if (turn_sensors_on())
+            /* Read Request Received */
+            //1. Power on GPS
+            if (sam_m8q_pwr_on())
             {
-                LOG_ERR("Unable to power on sensors");
+                LOG_ERR("Unable to power on SAM_M8Q FET");
             }
-            //TODO Delay to compensate for ADC Settling and GPS Lock?, Needs to be adjusted
-            k_msleep(500);
-
-            //TODO getTurbidity(&sensorData), getGPS(&sensorData)
-
+            //Power Stability delay
+            k_msleep(1000);
             /* GPS Should be called before getTurbidity, as the gps lock can take an arbitrary amount of time */
-            //TODO Power each of the sensors individually
+            //2. Collect GPS
             get_gps(&sensorData);
-
+            //3. Power off GPS
+            sam_m8q_pwr_off();
+            //4. Power on TSD-10
+            if (tsd_10_pwr_on())
+            {
+                LOG_ERR("Unable to power on SAM_M8Q FET");
+            }
+            //Power Stability delay
+            k_msleep(500);
             /* This call waits on a singal */
+            //5. Collect Turbidity
             get_turbidity(&sensorData);
-
+            //6. Turn TSD-10 Off
+            tsd_10_pwr_off();
+            //7. Post gathered Data
             if (k_msgq_put(&sensor_msgq, &sensorData, K_NO_WAIT) != 0)
             {
                 k_msgq_purge(&sensor_msgq); //Make Space
                 //TODO Attempt to put it here again?
             }
-
             //Clear current data, queue is pass by copy not reference
             memset(&sensorData, 0, sizeof sensorData);
-
-            if (turn_sensors_off())
-            {
-                LOG_ERR("Unable to power off sensors");
-            }
         }
     }
 }
@@ -125,7 +128,7 @@ void get_gps(struct sensor_packet *sensorData)
 
     struct samGLLMessage gllMsgPacket = {0};
     /* Wait for receive data from GPS thread */
-    if (k_msgq_get(&gps_msgq, &gllMsgPacket, K_SECONDS(GPS_NO_LOCK_TIMEOUT)) != 0)
+    if (k_msgq_get(&gps_msgq, &gllMsgPacket, K_SECONDS(10)) != 0)
     {
         /* MSG not received, timeout */
         LOG_ERR("GPS No lock timeout");
@@ -136,7 +139,7 @@ void get_gps(struct sensor_packet *sensorData)
         return;
     }
 
-    printk("REC GPS LOCK: %f  |--| %f", gllMsgPacket.lat, gllMsgPacket.lon);
+    //printk("REC GPS LOCK: %f  |--| %f", gllMsgPacket.lat, gllMsgPacket.lon);
     sensorData->lattitude = gllMsgPacket.lat;
     sensorData->longitude = gllMsgPacket.lon;
 }

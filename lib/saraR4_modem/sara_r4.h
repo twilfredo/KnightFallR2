@@ -26,6 +26,7 @@
 /* ==================================================================== */
 extern bool mqttConnected;
 extern struct k_msgq to_network_msgq;
+extern struct k_sem networkReady;
 
 /* ==================================================================== */
 /* ==============================MODEM PINS============================ */
@@ -73,6 +74,8 @@ extern struct k_msgq to_network_msgq;
 #define LATT_FIELD 0x2A
 #define NUM_PACKET_TO_SEND 3
 #define THINGSPEAK_UPDATE_RATE 13 //Seconds
+
+#define GPS_NO_LOCK_VAL 0.00 //Constant to indicate NOLOCK
 /* ==================================================================== */
 /* ==============================UART-PORT1============================ */
 /* ==================================================================== */

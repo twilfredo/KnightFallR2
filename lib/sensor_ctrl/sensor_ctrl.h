@@ -6,7 +6,7 @@
 struct sensor_packet
 {
     int turbidity; //Stored in NTUs
-    int longitude, lattitude;
+    float longitude, lattitude;
 };
 
 extern struct k_msgq sensor_msgq;
