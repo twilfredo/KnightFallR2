@@ -128,7 +128,7 @@ void get_gps(struct sensor_packet *sensorData)
 
     struct samGLLMessage gllMsgPacket = {0};
     /* Wait for receive data from GPS thread */
-    if (k_msgq_get(&gps_msgq, &gllMsgPacket, K_SECONDS(10)) != 0)
+    if (k_msgq_get(&gps_msgq, &gllMsgPacket, K_SECONDS(GPS_NO_LOCK_TIMEOUT)) != 0)
     {
         /* MSG not received, timeout */
         LOG_ERR("GPS No lock timeout");
