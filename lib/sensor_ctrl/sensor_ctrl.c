@@ -116,6 +116,7 @@ void thread_sensor_control(void)
 
 /**
  * @brief Get the long and latt values from the sam-m8q driver
+ * @note Function waits on a message from the gps driver for a timeout period. 
  * 
  * TODO Complete this/Add reasonable timeout.
  * 

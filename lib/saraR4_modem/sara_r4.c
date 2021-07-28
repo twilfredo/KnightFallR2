@@ -585,10 +585,10 @@ void update_sensor_buffers(struct sensor_packet *sensorData)
 
     if (sensorData->longitude == GPS_NO_LOCK_VAL || sensorData->lattitude == GPS_NO_LOCK_VAL)
     {
-        snprintf(dataPacket, sizeof dataPacket, "NTU:%d##LON:NO_LOCK##LATT:NO_LOCK", sensorData->turbidity);
+        snprintk(dataPacket, sizeof dataPacket, "NTU:%d##LON:NO_LOCK##LATT:NO_LOCK", sensorData->turbidity);
     }
     else
     {
-        snprintf(dataPacket, sizeof dataPacket, "NTU:%d##LONG:%f##LATT:%f", sensorData->turbidity, sensorData->longitude, sensorData->lattitude);
+        snprintk(dataPacket, sizeof dataPacket, "NTU:%d##LATT:%f##LONG:%f", sensorData->turbidity, sensorData->lattitude, sensorData->longitude);
     }
 }
