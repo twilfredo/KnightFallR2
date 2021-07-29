@@ -157,7 +157,7 @@ void get_turbidity(struct sensor_packet *sensorData)
     //This sem allows for a tsd10 adc read, see tsd10_adc.c
     k_sem_give(&tsd10_read_sem);
 
-    if (k_poll(&tsd10_evt, 1, K_MSEC(1000)) != 0)
+    if (k_poll(&tsd10_evt, 1, K_MSEC(TSD_EVENT_TIMEOUT)) != 0)
     {
         //Timeout occured
         LOG_ERR("TSD_10 Reading timed out");

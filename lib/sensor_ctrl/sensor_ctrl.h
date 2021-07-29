@@ -19,6 +19,7 @@ extern struct k_poll_signal tsd10_sig;
 
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 500
+#define TSD_EVENT_TIMEOUT 1000
 
 /* Debug Thread Stack size */
 #define STACK_SIZE_SENSOR_CTRL 2048
