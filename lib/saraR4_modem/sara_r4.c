@@ -27,7 +27,7 @@
 #include "sara_r4.h"
 //#include "sensors_custom.h"
 
-LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_INF);
 
 //UART RING BUFFERS
 #define RING_BUF_SIZE (64 * 2)
