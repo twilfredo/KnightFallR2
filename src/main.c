@@ -60,7 +60,7 @@ void main(void)
 {
     /* Start USB Driver */
     //TODO: Disable for production
-    usb_enable(NULL);
+    //usb_enable(NULL); //USB Shell is deprecated, using RTL -> Modem UART Error with USBSHELL
 
     struct sensor_packet sensorDataRec = {0};
 
