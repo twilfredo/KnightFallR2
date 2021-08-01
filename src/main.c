@@ -59,8 +59,8 @@ K_THREAD_DEFINE(gps_ctrl, STACK_SIZE_GPS_THREAD, thread_gps_ctrl, NULL, NULL, NU
 void main(void)
 {
     /* Start USB Driver */
-    //TODO: Disable for production
-    //usb_enable(NULL); //USB Shell is deprecated, using RTL -> Modem UART Error with USBSHELL
+    //TODO: Disable for production: and when using battery pack
+    usb_enable(NULL);
 
     struct sensor_packet sensorDataRec = {0};
 

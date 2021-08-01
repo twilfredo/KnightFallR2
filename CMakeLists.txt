@@ -2,7 +2,7 @@
 #Setting to exclusively build for the Particle Argon
 set(BOARD particle_boron)
 set(BOARD_FLASH_RUNNER jlink)
-set(CONF_FILE general_config.conf rtt_shell.conf)
+set(CONF_FILE general_config.conf usb_config.conf uart_shell_config.conf)
 
 cmake_minimum_required(VERSION 3.13.1)
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
