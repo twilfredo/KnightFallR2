@@ -21,11 +21,12 @@
 #include "sara_r4.h"
 //#include "sensors_custom.h"
 #include "sam_m8q.h"
-#include "tsd10_adc.h"
+//#include "tsd10_adc.h"
 
 //Todo Remove Later, main thread does not need to communicate with sensors.
 #include "sensor_ctrl.h"
 #include "sensor_pwr.h"
+#include "mcp3008.h"
 
 #define SENSOR_ACTIVE_DELAY 13000
 
@@ -36,7 +37,6 @@ K_MSGQ_DEFINE(to_network_msgq, sizeof(struct sensor_packet), 10, 4);
 /* Compile Time Threads - These threads start runtime after the delay specified, else at ~t=0 */
 /* Aux Threads */
 K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
-//K_THREAD_DEFINE(sensor_driver, STACK_SIZE_SENSORS, thread_sensors, NULL, NULL, NULL, THREAD_PRIORITY_SENSORS, 0, 10);
 
 /* Network Threads - Modem */
 K_THREAD_DEFINE(modem_ctrl, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
@@ -44,11 +44,13 @@ K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NU
 
 /* TSD-10 ADC Thread */
 //! Enable CMAKE COMPILE FOR THIS FILE WHEN TESTING
-K_THREAD_DEFINE(tsd10_adc, STACK_SIZE_TSD_THREAD, thread_tsd10_adc, NULL, NULL, NULL, THREAD_PRIORITY_TSD_THREAD, 0, 50);
 K_THREAD_DEFINE(sensor_ctrl, STACK_SIZE_SENSOR_CTRL, thread_sensor_control, NULL, NULL, NULL, PRIORITY_SENSOR_CTRL, 0, 50);
 
 /* GPS Communications Thread */
 K_THREAD_DEFINE(gps_ctrl, STACK_SIZE_GPS_THREAD, thread_gps_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_GPS, 0, 50);
+
+/*MCP3008 ADC */
+K_THREAD_DEFINE(adc_ctrl, STACK_SIZE_ADC_THREAD, thread_adc_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_ADC, 0, 50);
 
 /**
  * @brief Entry thread to start the USB driver which the Shell 

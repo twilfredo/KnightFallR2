@@ -11,8 +11,8 @@
 #define SENSOR_PWR_H
 
 #define GPIO_FET DT_LABEL(DT_NODELABEL(gpio0))
-#define SAM_M8Q_PWR_PIN 30 //A4
-#define TSD_10_PWR_PIN 31  //A5
+#define SAM_M8Q_PWR_PIN 4 //A1 - P0.04
+#define TSD_10_PWR_PIN 28 //A2 - P0.28
 #define PWR_ON 1
 #define PWR_OFF 0
 
