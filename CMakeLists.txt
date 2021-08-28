@@ -15,14 +15,17 @@ include_directories(inc/
                     lib/sam_m8q_gps/
                     lib/sensor_ctrl/
                     lib/mcp3008_adc/
+                    lib/sys_pwr/
+                    lib/sys_led/
                     )
 
 target_sources(app PRIVATE
                         src/main.c
                         lib/mcp3008_adc/mcp3008.c
                         lib/saraR4_modem/sara_r4.c      #LTE-M1 Driver
-                        lib/saraR4_modem/dbg_led.c      #Debug Led Thread
+                        lib/sys_led//dbg_led.c          #Debug Led Thread
                         lib/sam_m8q_gps/sam_m8q.c       #GPS Module  
                         lib/sensor_ctrl/sensor_pwr.c    #Controls the PWR mosFETs for sensor power
                         lib/sensor_ctrl/sensor_ctrl.c   #Sensor HAL (Abstraction driver for controlling sensors)
+                        lib/sys_pwr/sys_pwr.c           #Boron Pwr control IC
              )

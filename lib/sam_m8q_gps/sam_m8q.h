@@ -41,7 +41,7 @@ extern bool gpsTimeOutOccured;
 /* Device tree node identifier for UART0 - Connected to GPS Module*/
 #define UART0 DT_LABEL(DT_NODELABEL(uart0))
 
-void thread_gps_ctrl(void);
+void thread_gps_ctrl(void *p1, void *p2, void *p3);
 
 int sam_m8q_uart_init(void);
 

@@ -18,7 +18,7 @@
 #define SPI_CS_DELAY 2
 #define SPI DT_NODELABEL(spi3)
 
-void thread_adc_ctrl(void);
+void thread_adc_ctrl(void *p1, void *p2, void *p3);
 
 float adc_to_mV(uint16_t adcRead);
 

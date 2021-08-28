@@ -57,7 +57,7 @@ float adc_to_voltage(uint16_t adcRead)
  *          MCP3008 datasheet, things might seems a bit weird. 
  * 
  */
-void thread_adc_ctrl(void)
+void thread_adc_ctrl(void *p1, void *p2, void *p3)
 {
 
     /* Create SPI Conf */

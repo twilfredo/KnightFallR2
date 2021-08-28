@@ -99,7 +99,7 @@ void sam_m8q_config(void)
  * @brief Controls and sends data to the SAM-M8Q GPS module. 
  * 
  */
-void thread_gps_ctrl(void)
+void thread_gps_ctrl(void *p1, void *p2, void *p3)
 {
 
     if (sam_m8q_uart_init())

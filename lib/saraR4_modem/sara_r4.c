@@ -113,7 +113,7 @@ short publishField = TBD_FIELD;
  *          to ensure modem functionality. Do not change the timing. 
  * 
  */
-void thread_modem_ctrl(void)
+void thread_modem_ctrl(void *p1, void *p2, void *p3)
 {
 //Begin modem power sequnce
 restart_modem:
@@ -137,6 +137,7 @@ restart_modem:
     k_msleep(4000);
 
     //Modem is powered on here
+    LOG_INF("Registering on Network...");
     if (!modem_network_init())
     {
         LOG_WRN("Error Initializing Network, Restart Modem");
@@ -149,6 +150,7 @@ restart_modem:
     short connectionAttempts = 0;
 //Establish MQTT connection to ThingSpeak
 reconnect_MQTT:
+    LOG_INF("Connecting to MQTT Server...");
     if (!modem_mqtt_init())
     {
         LOG_WRN("Error Connecting to MQTT");
@@ -219,7 +221,7 @@ reconnect_MQTT:
  *          and log the received message from ring buffer.
  * 
  */
-void thread_modem_receive(void)
+void thread_modem_receive(void *p1, void *p2, void *p3)
 {
 
     while (1)
@@ -514,7 +516,7 @@ int modem_pin_init(void)
 {
     //Config Modem Power Pins
     const struct device *gpio_dev = device_get_binding(GPIO0);
-    LOG_INF("Setting Modem Pins");
+    LOG_INF("Initializing Modem Power");
 
     LOG_DBG("MDM_RESET_PIN -> NOT_ASSERTED");
 
@@ -567,7 +569,7 @@ int modem_pin_init(void)
     //R4 Zephyr Driver Does this for some reason.
     gpio_pin_configure(gpio_dev, SARA_PWR_PIN, GPIO_INPUT);
 
-    LOG_INF("MODEM PWR -> OK");
+    LOG_INF("Modem Power OK");
     return 0;
 }
 

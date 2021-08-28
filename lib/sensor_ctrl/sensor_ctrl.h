@@ -28,7 +28,7 @@ extern struct k_poll_signal tsd10_sig;
 #define PRIORITY_SENSOR_CTRL 5 /* Lower Numerics has higher priority, -Ve Priorities are cooperitive threads, +Ve Priorities  are Preemtible  */
 
 /* Function Declarations */
-void thread_sensor_control(void);
+void thread_sensor_control(void *p1, void *p2, void *p3);
 
 int turn_sensors_off(void);
 

@@ -64,7 +64,7 @@ SHELL_CMD_REGISTER(sensor_ctrl, &sensors_sub, "Sensor Control", NULL);
  *          and put sensor information onto a message queue that can be accesed by the networking thread
  *          where the data can be published using MQTT to thingspeak. 
  */
-void thread_sensor_control(void)
+void thread_sensor_control(void *p1, void *p2, void *p3)
 {
     struct sensor_packet sensorData = {0};
 

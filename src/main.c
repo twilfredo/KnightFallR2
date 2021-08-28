@@ -19,11 +19,9 @@
 
 #include "dbg_led.h"
 #include "sara_r4.h"
-//#include "sensors_custom.h"
 #include "sam_m8q.h"
-//#include "tsd10_adc.h"
-
 //Todo Remove Later, main thread does not need to communicate with sensors.
+#include "sys_pwr.h"
 #include "sensor_ctrl.h"
 #include "sensor_pwr.h"
 #include "mcp3008.h"
@@ -36,21 +34,71 @@ K_MSGQ_DEFINE(to_network_msgq, sizeof(struct sensor_packet), 10, 4);
 
 /* Compile Time Threads - These threads start runtime after the delay specified, else at ~t=0 */
 /* Aux Threads */
-K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
+K_THREAD_STACK_DEFINE(led_thread_stack, STACK_SIZE_LED_THREAD);
+struct k_thread led_thread_d;
+//K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
 
 /* Network Threads - Modem */
-K_THREAD_DEFINE(modem_ctrl, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 50);
-K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 200);
+K_THREAD_STACK_DEFINE(modem_ctrl_stack, STACK_SIZE_MODEM_THREAD);
+K_THREAD_STACK_DEFINE(modem_recv_stack, STACK_SIZE_MODEM_THREAD);
+struct k_thread modem_ctrl_d, modem_recv_d;
+//K_THREAD_DEFINE(modem_ctrl, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 1000);
+//K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 1200);
 
-/* TSD-10 ADC Thread */
-//! Enable CMAKE COMPILE FOR THIS FILE WHEN TESTING
-K_THREAD_DEFINE(sensor_ctrl, STACK_SIZE_SENSOR_CTRL, thread_sensor_control, NULL, NULL, NULL, PRIORITY_SENSOR_CTRL, 0, 50);
+/* Sensor Control Thread */
+K_THREAD_STACK_DEFINE(sensor_ctrl_stack, STACK_SIZE_SENSOR_CTRL);
+struct k_thread sensor_ctrl_d;
+//K_THREAD_DEFINE(sensor_ctrl, STACK_SIZE_SENSOR_CTRL, thread_sensor_control, NULL, NULL, NULL, PRIORITY_SENSOR_CTRL, 0, 50);
 
 /* GPS Communications Thread */
-K_THREAD_DEFINE(gps_ctrl, STACK_SIZE_GPS_THREAD, thread_gps_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_GPS, 0, 50);
+K_THREAD_STACK_DEFINE(gps_ctrl_stack, STACK_SIZE_GPS_THREAD);
+struct k_thread gps_ctrl_d;
+//K_THREAD_DEFINE(gps_ctrl, STACK_SIZE_GPS_THREAD, thread_gps_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_GPS, 0, 50);
 
 /*MCP3008 ADC */
-K_THREAD_DEFINE(adc_ctrl, STACK_SIZE_ADC_THREAD, thread_adc_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_ADC, 0, 50);
+K_THREAD_STACK_DEFINE(adc_ctrl_stack, STACK_SIZE_GPS_THREAD);
+struct k_thread adc_ctrl_d;
+//K_THREAD_DEFINE(adc_ctrl, STACK_SIZE_ADC_THREAD, thread_adc_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_ADC, 0, 50);
+
+k_tid_t led_tid, modem_ctrl_tid, modem_recv_tid, sensor_ctrl_tid, gps_ctrl_tid, adc_ctrl_tid;
+
+/**
+ * @brief Creates system threads.
+ * 
+ */
+void spawn_threads(void)
+{
+    /* Spawn System threads */
+    led_tid = k_thread_create(&led_thread_d, led_thread_stack, K_THREAD_STACK_SIZEOF(led_thread_stack),
+                              thread_flash_debug_led,
+                              NULL, NULL, NULL,
+                              THREAD_PRIORITY_LED_THREAD, 0, K_NO_WAIT);
+
+    modem_ctrl_tid = k_thread_create(&modem_ctrl_d, modem_ctrl_stack, K_THREAD_STACK_SIZEOF(modem_ctrl_stack),
+                                     thread_modem_ctrl,
+                                     NULL, NULL, NULL,
+                                     THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
+
+    modem_recv_tid = k_thread_create(&modem_recv_d, modem_recv_stack, K_THREAD_STACK_SIZEOF(modem_recv_stack),
+                                     thread_modem_receive,
+                                     NULL, NULL, NULL,
+                                     THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
+
+    sensor_ctrl_tid = k_thread_create(&sensor_ctrl_d, sensor_ctrl_stack, K_THREAD_STACK_SIZEOF(sensor_ctrl_stack),
+                                      thread_sensor_control,
+                                      NULL, NULL, NULL,
+                                      PRIORITY_SENSOR_CTRL, 0, K_NO_WAIT);
+
+    gps_ctrl_tid = k_thread_create(&gps_ctrl_d, gps_ctrl_stack, K_THREAD_STACK_SIZEOF(gps_ctrl_stack),
+                                   thread_gps_ctrl,
+                                   NULL, NULL, NULL,
+                                   THREAD_PRIORITY_GPS, 0, K_NO_WAIT);
+
+    adc_ctrl_tid = k_thread_create(&adc_ctrl_d, adc_ctrl_stack, K_THREAD_STACK_SIZEOF(adc_ctrl_stack),
+                                   thread_adc_ctrl,
+                                   NULL, NULL, NULL,
+                                   THREAD_PRIORITY_ADC, 0, K_NO_WAIT);
+}
 
 /**
  * @brief Entry thread to start the USB driver which the Shell 
@@ -60,9 +108,23 @@ K_THREAD_DEFINE(adc_ctrl, STACK_SIZE_ADC_THREAD, thread_adc_ctrl, NULL, NULL, NU
  */
 void main(void)
 {
+    int sysPwrErr;
+pmic_pwr_setup:
+
+    sysPwrErr = sys_pwr_init();
+
+    if (sysPwrErr != OK)
+    {
+        k_sleep(K_SECONDS(1));
+        goto pmic_pwr_setup;
+    }
+
     /* Start USB Driver */
     //TODO: Disable for production: and when using battery pack
     usb_enable(NULL);
+
+    /* Start Threads */
+    spawn_threads();
 
     struct sensor_packet sensorDataRec = {0};
 
