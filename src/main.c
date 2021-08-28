@@ -32,34 +32,27 @@ LOG_MODULE_REGISTER(device_ctrl_main, LOG_LEVEL_DBG);
 
 K_MSGQ_DEFINE(to_network_msgq, sizeof(struct sensor_packet), 10, 4);
 
-/* Compile Time Threads - These threads start runtime after the delay specified, else at ~t=0 */
 /* Aux Threads */
 K_THREAD_STACK_DEFINE(led_thread_stack, STACK_SIZE_LED_THREAD);
 struct k_thread led_thread_d;
-//K_THREAD_DEFINE(debug_led, STACK_SIZE_LED_THREAD, thread_flash_debug_led, NULL, NULL, NULL, THREAD_PRIORITY_LED_THREAD, 0, 50);
 
 /* Network Threads - Modem */
 K_THREAD_STACK_DEFINE(modem_ctrl_stack, STACK_SIZE_MODEM_THREAD);
 K_THREAD_STACK_DEFINE(modem_recv_stack, STACK_SIZE_MODEM_THREAD);
 struct k_thread modem_ctrl_d, modem_recv_d;
-//K_THREAD_DEFINE(modem_ctrl, STACK_SIZE_MODEM_THREAD, thread_modem_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 1000);
-//K_THREAD_DEFINE(modem_receive, STACK_SIZE_MODEM_THREAD, thread_modem_receive, NULL, NULL, NULL, THREAD_PRIORITY_MODEM, 0, 1200);
 
 /* Sensor Control Thread */
 K_THREAD_STACK_DEFINE(sensor_ctrl_stack, STACK_SIZE_SENSOR_CTRL);
 struct k_thread sensor_ctrl_d;
-//K_THREAD_DEFINE(sensor_ctrl, STACK_SIZE_SENSOR_CTRL, thread_sensor_control, NULL, NULL, NULL, PRIORITY_SENSOR_CTRL, 0, 50);
 
 /* GPS Communications Thread */
 K_THREAD_STACK_DEFINE(gps_ctrl_stack, STACK_SIZE_GPS_THREAD);
 struct k_thread gps_ctrl_d;
-//K_THREAD_DEFINE(gps_ctrl, STACK_SIZE_GPS_THREAD, thread_gps_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_GPS, 0, 50);
 
-/*MCP3008 ADC */
+/* MCP3008 ADC */
 K_THREAD_STACK_DEFINE(adc_ctrl_stack, STACK_SIZE_GPS_THREAD);
 struct k_thread adc_ctrl_d;
-//K_THREAD_DEFINE(adc_ctrl, STACK_SIZE_ADC_THREAD, thread_adc_ctrl, NULL, NULL, NULL, THREAD_PRIORITY_ADC, 0, 50);
-
+/* Thread IDS */
 k_tid_t led_tid, modem_ctrl_tid, modem_recv_tid, sensor_ctrl_tid, gps_ctrl_tid, adc_ctrl_tid;
 
 /**
