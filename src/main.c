@@ -26,7 +26,7 @@
 #include "sensor_pwr.h"
 #include "mcp3008.h"
 
-#define SENSOR_ACTIVE_DELAY 13000
+#define SENSOR_ACTIVE_DELAY 15
 
 LOG_MODULE_REGISTER(device_ctrl_main, LOG_LEVEL_DBG);
 
@@ -146,6 +146,7 @@ pmic_pwr_setup:
 
         //Clear current data, queue is pass by copy not reference
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
-        k_msleep(SENSOR_ACTIVE_DELAY);
+        LOG_INF("Sleeping...");
+        k_sleep(K_SECONDS(SENSOR_ACTIVE_DELAY));
     }
 }

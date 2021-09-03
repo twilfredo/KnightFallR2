@@ -28,4 +28,6 @@ int sam_m8q_pwr_off(void);
 
 int tsd_10_pwr_off(void);
 
+bool get_gps_pwr_stat(void);
+
 #endif

@@ -40,6 +40,11 @@ int sys_pwr_init(void)
         LOG_ERR("Unstable Power");
         return -1;
     }
+
+    if (set_charging_off() != OK)
+    {
+        LOG_ERR("Unable to turn charging off");
+    }
     //CHECK POWER REG STAT
     LOG_INF("System Power OK...");
 
@@ -48,6 +53,96 @@ int sys_pwr_init(void)
     turn_usr_led_on();
     k_msleep(50);
     turn_usr_led_off();
+    return 0;
+}
+
+int set_charging_off(void)
+{
+    uint8_t val;
+    const struct device *dev_i2c1 = device_get_binding(DT_LABEL(I2C1));
+
+    /* Set charging off */
+    if (i2c_reg_write_byte(dev_i2c1, BQ24195_ADDR, MISC_OP_REG, BAT_FET_DISABLE) != OK)
+    {
+        LOG_DBG("Unable to misc operation control register");
+        return -1;
+    }
+
+    if (i2c_reg_read_byte(dev_i2c1, BQ24195_ADDR, MISC_OP_REG, &val) != OK)
+    {
+        LOG_DBG("Unable to read to System Status Register register");
+        return -1;
+    }
+
+    if (val != BAT_FET_DISABLE)
+    {
+        LOG_DBG("BAT_FET_DISABLE write check mismatch");
+        return -1;
+    }
+
+    if (i2c_reg_write_byte(dev_i2c1, BQ24195_ADDR, TIMR_CTRL_REG, TIMR_DISABLE) != OK)
+    {
+        LOG_DBG("Unable to set timer control register");
+        return -1;
+    }
+
+    if (i2c_reg_read_byte(dev_i2c1, BQ24195_ADDR, TIMR_CTRL_REG, &val) != OK)
+    {
+        LOG_DBG("Unable to read to System Status Register register");
+        return -1;
+    }
+
+    if (val != TIMR_DISABLE)
+    {
+        LOG_DBG("TIMR_DISABLE write check mismatch");
+        return -1;
+    }
+
+    if (i2c_reg_write_byte(dev_i2c1, BQ24195_ADDR, PWR_ON_REG, PWR_ON_CONF_CHRG_OFF) != OK)
+    {
+        LOG_DBG("Unable to set source control register");
+        return -1;
+    }
+
+    if (i2c_reg_read_byte(dev_i2c1, BQ24195_ADDR, PWR_ON_REG, &val) != OK)
+    {
+        LOG_DBG("Unable to read to System Status Register register");
+        return -1;
+    }
+
+    if (val != PWR_ON_CONF_CHRG_OFF)
+    {
+        LOG_DBG("CHRG_OFF check mismatch 3 %d", val);
+        return -1;
+    }
+
+    return 0;
+}
+
+int set_charging_on(void)
+{
+    uint8_t val;
+    const struct device *dev_i2c1 = device_get_binding(DT_LABEL(I2C1));
+
+    /* Set charging off */
+    if (i2c_reg_write_byte(dev_i2c1, BQ24195_ADDR, PWR_ON_REG, PWR_ON_CONF_CHRG_ON) != OK)
+    {
+        LOG_DBG("Unable to set source control register");
+        return -1;
+    }
+
+    if (i2c_reg_read_byte(dev_i2c1, BQ24195_ADDR, PWR_ON_REG, &val) != OK)
+    {
+        LOG_DBG("Unable to read to System Status Register register");
+        return -1;
+    }
+
+    if (val != PWR_ON_CONF_CHRG_ON)
+    {
+        LOG_DBG("Write check mismatch");
+        return -1;
+    }
+
     return 0;
 }
 

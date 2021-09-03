@@ -19,6 +19,7 @@
 /* Local Includes */
 #include "sam_m8q.h"
 #include "sensor_ctrl.h"
+#include "sensor_pwr.h"
 
 LOG_MODULE_REGISTER(SAM_M8Q, LOG_LEVEL_INF);
 /* Inline Prototype */
@@ -74,8 +75,6 @@ void sam_m8q_config(void)
     /* Turn GGA Off */
     sam_m8q_uart_tx(cmd_ggaOff, sizeof cmd_ggaOff);
     k_msleep(SAM_CMD_DELAY);
-    //sam_m8q_uart_tx(cmd_gllOff, sizeof cmd_gllOff);
-    //k_msleep(SAM_CMD_DELAY);
     /* Turn GSA Off */
     sam_m8q_uart_tx(cmd_gsaOff, sizeof cmd_gsaOff);
     k_msleep(SAM_CMD_DELAY);
@@ -93,6 +92,7 @@ void sam_m8q_config(void)
     k_msleep(SAM_CMD_DELAY);
     /* Set Update Rate */
     sam_m8q_uart_tx(cmd_updateRate1Hz, sizeof cmd_updateRate1Hz);
+    k_msleep(SAM_CMD_DELAY);
 }
 
 /**
@@ -107,8 +107,12 @@ void thread_gps_ctrl(void *p1, void *p2, void *p3)
         LOG_ERR("UART Config Error");
     }
 
+    /* Power on GPS, So it can acquire lock while system is setting up. This can be removed, but it speeds up the GPS lock process on a cold start */
+    sam_m8q_pwr_on();
+    k_msleep(500);
+    sam_m8q_config();
+
     struct samGLLMessage gllMsgPacket = {0};
-    //sam_m8q_config();
 
     while (1)
     {
@@ -119,11 +123,9 @@ void thread_gps_ctrl(void *p1, void *p2, void *p3)
         //3. Poll GPS Data for a lock.
         do
         {
-            if (k_sem_take(&samRecSem, K_SECONDS(SAM_TIMEOUT)) != 0)
-            {
-                //TIMEOUT
-                LOG_ERR("Unable to detect 'newline' in data received.");
-            }
+            //4. Wait of recv ok sem
+            k_sem_take(&samRecSem, K_SECONDS(SAM_TIMEOUT));
+
             /* Is GPS Message Valid? */
             if (sam_recv(&gllMsgPacket) == true)
             {
@@ -136,6 +138,7 @@ void thread_gps_ctrl(void *p1, void *p2, void *p3)
                 }
                 break; //Break the for loop, message sent
             }
+            /* Parse until a valid packet is recvd */
         } while (gpsTimeOutOccured == false);
 
         gpsTimeOutOccured = false;

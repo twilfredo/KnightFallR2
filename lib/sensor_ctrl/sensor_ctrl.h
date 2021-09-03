@@ -16,7 +16,7 @@ extern struct k_poll_signal tsd10_sig;
 /* Sensor Defines */
 #define SENSOR_PWR_ON true
 #define SENSOR_PWR_OFF false
-
+#define VRAIL_DELAY 100
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 500
 #define TSD_EVENT_TIMEOUT 1000

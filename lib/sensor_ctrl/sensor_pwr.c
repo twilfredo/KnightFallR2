@@ -89,6 +89,11 @@ int init_sensor_pwr_gpio(void)
     return 0;
 }
 
+bool get_gps_pwr_stat(void)
+{
+    return gpsPwrState;
+}
+
 /**
  * @brief Turns on power to the SAM_M8Q GPS Module
  * 

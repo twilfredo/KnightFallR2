@@ -37,12 +37,10 @@ int turn_usr_led_off(void)
 void thread_flash_debug_led(void *p1, void *p2, void *p3)
 {
 
-    bool led_is_on = true;
-
-    const struct device *dev = device_get_binding(BLUE_LED);
+    const struct device *dev = device_get_binding(GRN_LED);
     const struct device *dev1 = device_get_binding(RED_LED);
 
-    int ret = gpio_pin_configure(dev, BLUE_PIN, GPIO_OUTPUT_INACTIVE | BLUE_LED_FLAGS);
+    int ret = gpio_pin_configure(dev, GRN_PIN, GPIO_OUTPUT_INACTIVE | GRN_LED_FLAGS);
     int ret1 = gpio_pin_configure(dev1, RED_PIN, GPIO_OUTPUT_INACTIVE | RED_LED_FLAGS);
 
     if (ret < 0 || ret1 < 0)
@@ -53,19 +51,19 @@ void thread_flash_debug_led(void *p1, void *p2, void *p3)
 
     while (1)
     {
-        led_is_on = !led_is_on;
 
         if (!mqttConnected)
         {
-            gpio_pin_set(dev, RED_PIN, (int)led_is_on);
-
-            k_msleep(SLEEP_TIME_MS_FAST);
+            gpio_pin_set(dev, RED_PIN, 1);
+            k_msleep(100);
+            gpio_pin_set(dev, RED_PIN, 0);
         }
         else
         {
-            gpio_pin_set(dev, BLUE_PIN, (int)led_is_on);
-            gpio_pin_set(dev, RED_PIN, (int)led_is_on);
-            k_msleep(SLEEP_TIME_MS_SLOW);
+            gpio_pin_set(dev, GRN_PIN, 1);
+            k_msleep(100);
+            gpio_pin_set(dev, GRN_PIN, 0);
         }
+        k_msleep(SLEEP_TIME_MS_SLOW);
     }
 }

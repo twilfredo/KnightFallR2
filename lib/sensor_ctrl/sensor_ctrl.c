@@ -79,29 +79,33 @@ void thread_sensor_control(void *p1, void *p2, void *p3)
             LOG_DBG("Active");
             /* Read Request Received */
             //1. Power on GPS
-            if (sam_m8q_pwr_on())
-            {
-                LOG_ERR("Unable to power on SAM_M8Q FET");
-            }
+            if (get_gps_pwr_stat() == false)
+                sam_m8q_pwr_on();
+
             //Power Stability delay
-            k_msleep(1000);
+            k_msleep(VRAIL_DELAY);
+
             /* GPS Should be called before getTurbidity, as the gps lock can take an arbitrary amount of time */
+
             //2. Collect GPS
             get_gps(&sensorData);
+
             //3. Power off GPS
             sam_m8q_pwr_off();
+
             //4. Power on TSD-10
-            if (tsd_10_pwr_on())
-            {
-                LOG_ERR("Unable to power on SAM_M8Q FET");
-            }
+            tsd_10_pwr_on();
+
             //Power Stability delay
-            k_msleep(500);
+            k_msleep(VRAIL_DELAY);
+
             /* This call waits on a singal */
             //5. Collect Turbidity
+
             get_turbidity(&sensorData);
             //6. Turn TSD-10 Off
             tsd_10_pwr_off();
+
             //7. Post gathered Data
             if (k_msgq_put(&sensor_msgq, &sensorData, K_NO_WAIT) != 0)
             {
@@ -124,7 +128,6 @@ void thread_sensor_control(void *p1, void *p2, void *p3)
  */
 void get_gps(struct sensor_packet *sensorData)
 {
-    //TODO Get GPS Coords
     k_sem_give(&gps_read_sem);
 
     struct samGLLMessage gllMsgPacket = {0};

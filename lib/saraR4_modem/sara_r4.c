@@ -50,7 +50,6 @@ K_SEM_DEFINE(networkReady, 0, 1);
 /* Network Defines */
 #define MODEM_APN "telstra.internet"
 #define MODEM_MCCMNO "50501"
-#define HOME_PC_IP "167.179.184.183"
 #define AT_INIT_CMD_SIZE 9  //Array Size containing modem network establish commands
 #define MQTT_INI_CMD_SIZE 6 //Array Size containing MQTT init commands
 
@@ -159,7 +158,7 @@ reconnect_MQTT:
         k_sem_give(&modemRecSem);
         connectionAttempts++;
 
-        if (connectionAttempts >= 2)
+        if (connectionAttempts >= 5)
         {
             //Multiple Connection attempst failed, powercycle modem
             LOG_ERR("Too Many Connection Attempts, Restarting Modem");
