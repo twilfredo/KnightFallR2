@@ -60,7 +60,7 @@ K_SEM_DEFINE(networkReady, 0, 1);
 #define TS_MQTT_UNAME "UQDrifter1"         //This could be any uniqueName
 
 //TODO Increase the MQTT Timeout (?)
-#define MQTT_TIMEOUT_S 10
+#define MQTT_TIMEOUT_S 30
 #define NETWORK_TIMEOUT_S 60
 
 //TODO 1. Modem Sleep Function -> CFUN0
@@ -209,8 +209,6 @@ reconnect_MQTT:
 
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
         memset(&sendBuffer, 0, sizeof sendBuffer);
-        //TODO and print RSSI Value.
-        //modem_uart_tx("AT+CESQ\r");
     }
 }
 

@@ -107,7 +107,9 @@ void thread_gps_ctrl(void *p1, void *p2, void *p3)
         LOG_ERR("UART Config Error");
     }
 
-    /* Power on GPS, So it can acquire lock while system is setting up. This can be removed, but it speeds up the GPS lock process on a cold start */
+    /* Power on GPS, So it can acquire lock while system is setting up. This can be removed, but it speeds up the GPS lock process on a cold start. 
+     * This increases the concurrent current draw during the boot up sequence. 
+     */
     sam_m8q_pwr_on();
     k_msleep(500);
     sam_m8q_config();
