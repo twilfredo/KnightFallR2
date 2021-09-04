@@ -75,6 +75,7 @@ extern struct k_sem networkReady;
 #define NUM_PACKET_TO_SEND 3
 #define THINGSPEAK_UPDATE_RATE 15 //Seconds
 
+#define PCKTS_DROPPED_MAX 2
 #define GPS_NO_LOCK_VAL 0.00 //Constant to indicate NOLOCK
 /* ==================================================================== */
 /* ==============================UART-PORT1============================ */

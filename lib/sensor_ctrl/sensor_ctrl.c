@@ -20,7 +20,7 @@
 #include "sensor_pwr.h"
 #include "sam_m8q.h"
 
-LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_WRN);
+LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_INF);
 
 K_MSGQ_DEFINE(sensor_msgq, sizeof(struct sensor_packet), 10, 4);
 //K_MSGQ_DEFINE(turbidity_msgq, sizeof(struct sensor_packet), 10, 4);
@@ -132,6 +132,7 @@ void get_gps(struct sensor_packet *sensorData)
 
     struct samGLLMessage gllMsgPacket = {0};
     /* Wait for receive data from GPS thread */
+    LOG_INF("Waiting for GPS Lock");
     if (k_msgq_get(&gps_msgq, &gllMsgPacket, K_SECONDS(GPS_NO_LOCK_TIMEOUT)) != 0)
     {
         /* MSG not received, timeout */

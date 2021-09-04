@@ -7,7 +7,6 @@
 
 LOG_MODULE_REGISTER(DBG_LED, LOG_LEVEL_DBG);
 //Extern variable for connection status
-//TODO chnage this an event etc...
 bool mqttConnected = false;
 
 int init_usr_led(void)

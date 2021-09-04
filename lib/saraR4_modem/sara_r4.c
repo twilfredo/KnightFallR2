@@ -25,7 +25,7 @@
 
 #include "sensor_ctrl.h"
 #include "sara_r4.h"
-//#include "sensors_custom.h"
+#include "dbg_led.h"
 
 LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_INF);
 
@@ -110,10 +110,13 @@ short publishField = TBD_FIELD;
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
  *          to ensure modem functionality. Do not change the timing. 
- * 
+ * @note Whenever this thread gets a packet from the main thread, it will instantly try to publish it. Therefore MQTT delays will be controlled by
+ *          SYS_ACTIVE_DELAY in the main thread. Limit this to > 15 Seconds. 
  */
 void thread_modem_ctrl(void *p1, void *p2, void *p3)
 {
+    int packetsDropped = 0;
+
 //Begin modem power sequnce
 restart_modem:
     mqttConnected = false;
@@ -150,6 +153,10 @@ restart_modem:
 //Establish MQTT connection to ThingSpeak
 reconnect_MQTT:
     LOG_INF("Connecting to MQTT Server...");
+
+    packetsDropped = 0; //Reset dropped packet counts
+    mqttConnected = false;
+
     if (!modem_mqtt_init())
     {
         LOG_WRN("Error Connecting to MQTT");
@@ -175,17 +182,18 @@ reconnect_MQTT:
     char sendBuffer[128];                     //UART Packet sent to modem
     struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
-    /* Network Ready */
-    k_sem_give(&networkReady);
+    LOG_INF("Network Ready...");
 
     while (1)
     {
+        /* Indicate Network Ready */
+        k_sem_give(&networkReady);
+
         /* Waits to receive sensor data from main thread */
         k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
 
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
-        /* Receive Data from sensor message queue */
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             /* Updates Turbidity Field on thingspeak */
@@ -193,14 +201,32 @@ reconnect_MQTT:
             //Field 1 is currently selected for packet streaming.
             snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
             modem_uart_tx(sendBuffer);
+
             k_sem_give(&modemRecSem); //Singal modem recv thread
 
-            k_sleep(K_SECONDS(THINGSPEAK_UPDATE_RATE)); //Thingspeak only updates every 15 seconds
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(MQTT_TIMEOUT_S)) != 0)
+            {
+                //Modem response was not OK;
+                LOG_WRN("MQTT Send Error...");
+                //Reconnect MQTT if packets keep dropping.
+                if (packetsDropped >= PCKTS_DROPPED_MAX)
+                    goto reconnect_MQTT;
+
+                packetsDropped++;
+            }
+            else
+            {
+                LOG_INF("Message Sent OK...");
+
+                /* Used to indicate message was parsed by the modem OK */
+                turn_usr_led_on();
+                k_msleep(50);
+                turn_usr_led_off();
+            }
         }
         else
         {
             //MQTT Error, attempt to re-establish connection.
-            mqttConnected = false;
             memset(&sensorDataRec, 0, sizeof sensorDataRec);
             goto reconnect_MQTT;
         }
@@ -564,7 +590,7 @@ int modem_pin_init(void)
     //R4 Zephyr Driver Does this for some reason.
     gpio_pin_configure(gpio_dev, SARA_PWR_PIN, GPIO_INPUT);
 
-    LOG_INF("Modem Power OK");
+    LOG_INF("Modem Power OK...");
     return 0;
 }
 

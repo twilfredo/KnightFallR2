@@ -7,7 +7,7 @@
 #include "mcp3008.h"
 #include "sensor_ctrl.h"
 
-LOG_MODULE_REGISTER(MCP3008, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(MCP3008, LOG_LEVEL_INF);
 
 /**
  * @brief Takes in an ADC reading in mV and return an NTU value that represents the approximate
@@ -109,6 +109,7 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
         k_sem_take(&tsd10_read_sem, K_FOREVER);
 
         /* Take 10 samples and calculate the average */
+        LOG_INF("Reading TSD-10...");
         for (int i = 1; i <= ADC_SAMPLES; ++i)
         {
             err = spi_transceive(spi, &spi_cfg, &tx, &rx);
@@ -132,8 +133,10 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
         adcVoltageAvg /= ADC_SAMPLES;
 
         k_poll_signal_raise(&tsd10_sig, millivolts_to_NTU(adcVoltageAvg));
-        printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
-        printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
+
+        //printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
+        //printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
+
         k_msleep(500);
     }
 }

@@ -26,7 +26,14 @@
 #include "sensor_pwr.h"
 #include "mcp3008.h"
 
-#define SENSOR_ACTIVE_DELAY 15
+/*
+ * This delay essentially controls how often the device will wake from sleep and get reading and publish these readings 
+ * to the server. The higher the delay, the lower the current draw (interm of battery relaxation).
+ * 
+ * Should keep it atleast > 15 seconds, as thingspeak server has a bandwidth limit capped at every 15 seconds (max update rate)
+ * 
+ */
+#define SYS_ACTIVE_DELAY 15
 
 LOG_MODULE_REGISTER(device_ctrl_main, LOG_LEVEL_DBG);
 
@@ -121,21 +128,20 @@ pmic_pwr_setup:
 
     struct sensor_packet sensorDataRec = {0};
 
-    /* Wait for network to init, sem given by the sara_r4.c driver */
-    LOG_INF("Waiting for network...");
-    k_sem_take(&networkReady, K_FOREVER);
-    LOG_INF("Network Ready, System Initialised");
-
+    LOG_INF("System Initialized...");
+    LOG_INF("Waiting for Network...");
     while (1)
     {
-        //TODO Add Sequence Control, Primary Loop (Network, Read, Sleep)
-        /* 1. Get Sensor Reading */
+        /* 1. Wait for network to be ready, should be always ready, unless error handling */
+        k_sem_take(&networkReady, K_FOREVER);
+
+        /* 2. Get Sensor Reading */
         k_sem_give(&sensor_active_sem);
         k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
 
-        printk("Sensors: Turbidity %d NTUs, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.longitude, sensorDataRec.lattitude);
+        //printk("Sensors: Turbidity %d NTUs, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.longitude, sensorDataRec.lattitude);
 
-        /* 2. Send Data to Network Driver */
+        /* 3. Send Data to Network Driver */
         if (k_msgq_put(&to_network_msgq, &sensorDataRec, K_NO_WAIT) != 0)
         {
             k_msgq_purge(&to_network_msgq); //Make Space
@@ -146,7 +152,7 @@ pmic_pwr_setup:
 
         //Clear current data, queue is pass by copy not reference
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
-        LOG_INF("Sleeping...");
-        k_sleep(K_SECONDS(SENSOR_ACTIVE_DELAY));
+        LOG_INF("Taking a small nap...");
+        k_sleep(K_SECONDS(SYS_ACTIVE_DELAY));
     }
 }
