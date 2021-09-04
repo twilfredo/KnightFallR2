@@ -111,7 +111,8 @@ void thread_gps_ctrl(void *p1, void *p2, void *p3)
      * This increases the concurrent current draw during the boot up sequence. 
      */
     sam_m8q_pwr_on();
-    k_msleep(500);
+    k_msleep(VRAIL_DELAY);
+    //Configure the module to send only GLL (Needs upon power cycle)
     sam_m8q_config();
 
     struct samGLLMessage gllMsgPacket = {0};

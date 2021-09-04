@@ -52,7 +52,7 @@ void thread_flash_debug_led(void *p1, void *p2, void *p3)
     while (1)
     {
 
-        if (!mqttConnected)
+        if (mqttConnected == false)
         {
             gpio_pin_set(dev, RED_PIN, 1);
             k_msleep(100);

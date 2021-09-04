@@ -195,8 +195,6 @@ reconnect_MQTT:
             modem_uart_tx(sendBuffer);
             k_sem_give(&modemRecSem); //Singal modem recv thread
 
-            //TODO: Subscribe to configuration option fields, and read any messages from broker.
-            //TODO: Merge to master branch once completed pub/sub
             k_sleep(K_SECONDS(THINGSPEAK_UPDATE_RATE)); //Thingspeak only updates every 15 seconds
         }
         else
@@ -229,7 +227,7 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
             //Wait until Rx Data is fully received.
             if (k_sem_take(&modemReadOkSem, K_FOREVER) == 0)
             {
-                //#Wait for RX to complete reading.
+                //Wait for RX to complete reading.
                 k_msleep(1000);
                 //Read RX ISR Ring Buffer.
                 if (modem_recv())
