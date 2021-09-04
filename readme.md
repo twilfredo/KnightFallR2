@@ -17,16 +17,19 @@ Shell allows for specific commands to be issued to the device for debugging/test
 
 ## Modes / Status LED <br />
 
-The drifter once it has established a network LTE-M1 connection will slowly blink purple (status led), if the device is not connected
-or is attemting to connect, it will blink red at a faster rate. 
+The drifter once it has established a network LTE-M1 connection will slowly blink green (status led), if the device is not connected
+or is attemting to connect, it will blink the red status led. 
 
 
 ## Data viewing <br />
-
+### Data viewing <br />
 The drifter will stream data to a public channel on ThingSpeak using MQTT. Due to the bandwidth limit restrictions imposed by thingspeak IO (Packet/15 Seconds), the drifter sends a '#' delimited string of data of the following format [turbidity#lattitude#longitude].  This can be viewed at the following link:
 
 >https://thingspeak.com/channels/1416495
 
 Clicking on 'export recent data', then 'JSON' is the easiest way of watching the data received onto the server. 
+
+### GUI <br />
+The output stream from the drifter can also be viewed using the GUI, it shows a recent history (last 10 updates) from the drifter and the ability to locate the device based on its last known location using google maps (click the locate button).
 
 <br />
