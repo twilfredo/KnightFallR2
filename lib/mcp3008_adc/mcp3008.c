@@ -42,12 +42,12 @@ float millivolts_to_NTU(int mV)
 
 float adc_to_mV(uint16_t adcRead)
 {
-    return ((adcRead * MCP3008_VDD) / MCP3008_RESOLUTION) * 1000.00;
+    return ((adcRead * MCP3008_REF) / MCP3008_RESOLUTION) * 1000.00;
 }
 
 float adc_to_voltage(uint16_t adcRead)
 {
-    return ((adcRead * MCP3008_VDD) / MCP3008_RESOLUTION);
+    return ((adcRead * MCP3008_REF) / MCP3008_RESOLUTION);
 }
 
 /**
@@ -134,8 +134,8 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
 
         k_poll_signal_raise(&tsd10_sig, millivolts_to_NTU(adcVoltageAvg));
 
-        //printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
-        //printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
+        // printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
+        // printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
 
         k_msleep(500);
     }
