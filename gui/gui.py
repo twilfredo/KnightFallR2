@@ -33,11 +33,19 @@ entry_id = ["" for x in range(dataPoints)]
 updatingIn = 0
 updateFlag = False
 
+
+def set_sleep_profile(profile):
+    URL_WRITE = 'https://api.thingspeak.com/update?api_key='
+    WRITE_KEY = '69ZL80QUBR5J0F6K'
+    HEADER = '&field8={}'.format(profile)
+    new_URL_WRITE = URL_WRITE+WRITE_KEY+HEADER
+    data = urllib.request.urlopen(new_URL_WRITE)
+    print(data)
+
 # Thread to poll data from ThingSpeak IO
 
 
 def data_loop():
-
     global connectionStat, updatingIn
     coldStart = True
     oldPacketNum = 0
@@ -111,6 +119,10 @@ def google_maps_cb():
     last_lon = (long[dataPoints-1])
     webbrowser.open_new(GOOGLE_LOC_URL + str(last_lat) + ',' + str(last_lon))
 
+
+def set_profile1_cb():
+    set_sleep_profile(1)
+
 # Thread to draw the GUI
 
 
@@ -131,6 +143,10 @@ def gui_loop():
 
     find_me_button = Button(
         window, text="Locate Device", command=google_maps_cb, bg='#1c2833', fg='white'
+    )
+
+    set_profile_button = Button(
+        window, text="Set Profile 1", command=set_profile1_cb, bg='#1c2833', fg='white'
     )
 
     connection_status = Label(
@@ -221,6 +237,7 @@ def gui_loop():
     disp_ent10.pack(pady=5)
 
     find_me_button.pack(pady=5)
+    set_profile_button.pack(pady=5)
 
     header_lab.pack(pady=3)
     disp_ent9.pack(pady=5)
@@ -292,9 +309,20 @@ def gui_loop():
         time.sleep(0.1)
 
 
+def t_test():
+    while(1):
+
+        recv_data = requests.get(
+            "https://api.thingspeak.com/channels/1501295/fields/8.json?api_key=ZSOFY41XVFNONUN7&results=2").json()
+        print(recv_data)
+        time.sleep(1)
+
+
 # Set and start threads
 thread_dataLoop = threading.Thread(target=data_loop, args=())
 thread_guiLoop = threading.Thread(target=gui_loop, args=())
+thread_test = threading.Thread(target=t_test, args=())
 
-thread_guiLoop.start()
-thread_dataLoop.start()
+thread_test.start()
+# thread_guiLoop.start()
+# thread_dataLoop.start()
