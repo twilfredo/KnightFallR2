@@ -27,7 +27,7 @@
 #include "sara_r4.h"
 #include "dbg_led.h"
 
-LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
 //UART RING BUFFERS
 #define RING_BUF_SIZE (64 * 2)
@@ -54,10 +54,13 @@ K_SEM_DEFINE(networkReady, 0, 1);
 #define MQTT_INI_CMD_SIZE 6 //Array Size containing MQTT init commands
 
 /* MQTT DEFINES */
-#define TS_MQTT_ADDR "mqtt.thingspeak.com"
+#define TS_MQTT_ADDR "mqtt3.thingspeak.com,1883"
 #define TS_MQTT_PORT "1883"
-#define TS_MQTT_API_KEY "HBMXZE8BF51ONVO5" //Thing Speak API KEY (MQTT - Account Level)
-#define TS_MQTT_UNAME "UQDrifter1"         //This could be any uniqueName
+//#define TS_MQTT_API_KEY "HBMXZE8BF51ONVO5" //Thing Speak API KEY (MQTT - Account Level)
+//#define TS_MQTT_UNAME "UQDrifter1"         //This could be any uniqueName
+#define TS_MQTT_UNAME "Kg0AGjE1JB0SLwwXFT0FJyQ"
+#define TS_MQTT_CID "Kg0AGjE1JB0SLwwXFT0FJyQ"
+#define TS_MQTT_PASS "ULXFifqohlslHz9lU3Q/mntL"
 
 //TODO Increase the MQTT Timeout (?)
 #define MQTT_TIMEOUT_S 30
@@ -98,9 +101,10 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
 char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
     "AT+CPSMS=0\r",
     "AT+CEDRXS=0\r",
-    "AT+UMQTT=0,35275309002\r", //MQTT unique client id  //! Client ID, TS_MQTT_UNAME and TS_MQTT_API_KEY Should not change
-    "AT+UMQTT=2,\"" TS_MQTT_ADDR "\", " TS_MQTT_PORT "\r",
-    "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_API_KEY "\"\r",
+    //"AT+UMQTT=0,35275309002\r", //MQTT unique client id  //! Client ID, TS_MQTT_UNAME and TS_MQTT_API_KEY Should not change
+    "AT+UMQTT=0,\"" TS_MQTT_CID "\r",
+    "AT+UMQTT=2,\"" TS_MQTT_ADDR "\r",
+    "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_PASS "\"\r",
     "AT+UMQTTC=1\r"};
 
 /* In the modem loop, this determined which field to update */
@@ -190,7 +194,7 @@ reconnect_MQTT:
         k_sem_give(&networkReady);
 
         /* Waits to receive sensor data from main thread */
-        k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
+        k_msgq_get(&to_network_msgq, &sensorDataRec, K_SECONDS(5)); //Waits for sensors data to publish
 
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
@@ -199,10 +203,12 @@ reconnect_MQTT:
             /* Updates Turbidity Field on thingspeak */
             //This packet in the following form [turbidity#longitude#lattitude]
             //Field 1 is currently selected for packet streaming.
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
+            //94Z2J4FS3282TET3 is channe write api key
+            //snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish", "field8=42424");
             modem_uart_tx(sendBuffer);
 
-            k_sem_give(&modemRecSem); //Singal modem recv thread
+            k_sem_give(&modemRecSem); //Signal modem recv thread
 
             if (k_sem_take(&modemCommandOkSem, K_SECONDS(MQTT_TIMEOUT_S)) != 0)
             {
