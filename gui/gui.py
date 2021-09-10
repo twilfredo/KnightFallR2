@@ -71,7 +71,7 @@ def data_loop():
                 # Last iteration of loop
                 if newPacketNum <= oldPacketNum or coldStart:
                     # No new data points received
-                    #print("Drifter: No new data points...")
+                    # print("Drifter: No new data points...")
                     coldStart = False
                     connectionStat = None
                 else:
@@ -312,9 +312,11 @@ def gui_loop():
 def t_test():
     while(1):
 
+       #     recv_data = requests.get(
+        # "https://api.thingspeak.com/channels/1501295/fields/8/last.txt")
         recv_data = requests.get(
-            "https://api.thingspeak.com/channels/1501295/fields/8.json?api_key=ZSOFY41XVFNONUN7&results=2").json()
-        print(recv_data)
+            "https://api.thingspeak.com/channels/1501295/fields/8.json")
+        print(recv_data.content)
         time.sleep(1)
 
 

@@ -30,7 +30,7 @@
 LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
 //UART RING BUFFERS
-#define RING_BUF_SIZE (64 * 2)
+#define RING_BUF_SIZE (2048)
 uint8_t rb_buf[RING_BUF_SIZE];
 struct ring_buf rx_rb;
 
@@ -113,7 +113,7 @@ short publishField = TBD_FIELD;
 #define READ_FILE "read.rsp"
 #define SET_FILE "set.rsp"
 #define UPDATE_ADDR "/update?api_key=69ZL80QUBR5J0F6K&field8=69"
-#define READ_ADDR "/channels/1501295/fields/8.json"
+#define READ_ADDR "/channels/1501295/fields/8/last.json"
 
 char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     "AT+CFUN=1\r",
@@ -131,8 +131,11 @@ bool modem_http_init(void)
         if (k_sem_take(&modemSendSem, K_SECONDS(HTTP_TIMEOUT)) == 0)
         {
             modem_uart_tx(httpSetupCommands[i]);
-            k_sem_give(&modemRecSem);
+            if (i == 4)
+                k_msleep(5000);
 
+            k_msleep(1000);
+            k_sem_give(&modemRecSem);
             if (k_sem_take(&modemCommandOkSem, K_SECONDS(HTTP_TIMEOUT)) != 0)
             {
                 //Modem response was not OK, or was timed out;
@@ -463,13 +466,13 @@ static void uart_cb(const struct device *uart_device, void *user_data)
     const struct device *dev_uart1 = uart_device;
 
     int rx, ret;
-    static uint8_t read_buf[MAX_READ_SIZE];
+    static uint8_t read_buf[2048];
 
     /* get all of the data off UART as fast as we can */
     while (uart_irq_update(dev_uart1) &&
            uart_irq_rx_ready(dev_uart1))
     {
-        rx = uart_fifo_read(dev_uart1, read_buf, sizeof(read_buf));
+        rx = uart_fifo_read(dev_uart1, read_buf, 2048);
         //Todo Modem Replies, Need to fix ring buffer.
 
         if (rx > 0)
@@ -489,6 +492,7 @@ static void uart_cb(const struct device *uart_device, void *user_data)
             k_sem_give(&modemReadOkSem);
         }
     }
+    printk("GOT: %s\n", read_buf);
 }
 
 /**
@@ -533,7 +537,7 @@ int modem_uart_init(void)
         uart_irq_rx_disable(dev_uart1);
         uart_irq_callback_user_data_set(dev_uart1, uart_cb, NULL);
         uart_irq_rx_enable(dev_uart1);
-        ring_buf_init(&rx_rb, 128, rb_buf);
+        ring_buf_init(&rx_rb, RING_BUF_SIZE, rb_buf);
         return uart_configure(dev_uart1, &uart_cfg);
     }
 }
