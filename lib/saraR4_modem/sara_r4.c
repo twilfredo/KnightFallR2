@@ -51,10 +51,10 @@ K_SEM_DEFINE(networkReady, 0, 1);
 #define MODEM_APN "telstra.internet"
 #define MODEM_MCCMNO "50501"
 #define AT_INIT_CMD_SIZE 9  //Array Size containing modem network establish commands
-#define MQTT_INI_CMD_SIZE 6 //Array Size containing MQTT init commands
+#define MQTT_INI_CMD_SIZE 7 //Array Size containing MQTT init commands
 
 /* MQTT DEFINES */
-#define TS_MQTT_ADDR "mqtt3.thingspeak.com,1883"
+#define TS_MQTT_ADDR "mqtt3.thingspeak.com"
 #define TS_MQTT_PORT "1883"
 //#define TS_MQTT_API_KEY "HBMXZE8BF51ONVO5" //Thing Speak API KEY (MQTT - Account Level)
 //#define TS_MQTT_UNAME "UQDrifter1"         //This could be any uniqueName
@@ -95,17 +95,21 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
     "AT+CGDCONT=1,\"IP\",\"" MODEM_APN "\"\r", //6
     "AT+CFUN=1\r",                             //7
     "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",      //8
-    "AT+CFUN=0\r"};                            //9
+    "AT+CFUN=1\r"};                            //9
 
 /* MQTT Connection Setup */
 char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
     "AT+CPSMS=0\r",
     "AT+CEDRXS=0\r",
     //"AT+UMQTT=0,35275309002\r", //MQTT unique client id  //! Client ID, TS_MQTT_UNAME and TS_MQTT_API_KEY Should not change
-    "AT+UMQTT=0,\"" TS_MQTT_CID "\r",
-    "AT+UMQTT=2,\"" TS_MQTT_ADDR "\r",
-    "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_PASS "\"\r",
-    "AT+UMQTTC=1\r"};
+    // "AT+UMQTT=0,\"" TS_MQTT_CID "\r",
+    // "AT+UMQTT=2,\"" TS_MQTT_ADDR "\"," TS_MQTT_PORT "\r",
+    // "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_PASS "\"\r",
+    "AT+UMQTT=0,Kg0AGjE1JB0SLwwXFT0FJyQ\r",
+    "AT+UMQTT=2,mqtt3.thingspeak.com,1883\r",
+    "AT+UMQTT=4,Kg0AGjE1JB0SLwwXFT0FJyQ,ULXFifqohlslHz9lU3Q/mntL\r",
+    "AT+UMQTTC=1\r",
+    "AT+UMQTTC=4,0,channels/1501295/subscribe/fields/field8\r"};
 
 /* In the modem loop, this determined which field to update */
 short publishField = TBD_FIELD;
@@ -190,11 +194,18 @@ reconnect_MQTT:
 
     while (1)
     {
+        modem_uart_tx("AT+UMQTTC=6\r");
+        k_msleep(5000);
+        k_sem_give(&modemRecSem);
+    }
+
+    while (1)
+    {
         /* Indicate Network Ready */
         k_sem_give(&networkReady);
 
         /* Waits to receive sensor data from main thread */
-        k_msgq_get(&to_network_msgq, &sensorDataRec, K_SECONDS(5)); //Waits for sensors data to publish
+        k_msgq_get(&to_network_msgq, &sensorDataRec, K_SECONDS(10)); //Waits for sensors data to publish
 
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
@@ -205,7 +216,7 @@ reconnect_MQTT:
             //Field 1 is currently selected for packet streaming.
             //94Z2J4FS3282TET3 is channe write api key
             //snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish", "field8=42424");
+            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1501295/publish", "field8=4242477");
             modem_uart_tx(sendBuffer);
 
             k_sem_give(&modemRecSem); //Signal modem recv thread
@@ -327,6 +338,7 @@ bool modem_mqtt_init(void)
         if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
         {
             modem_uart_tx(mqttSetupCommands[i]);
+            k_msleep(1000);
             k_sem_give(&modemRecSem);
 
             if (k_sem_take(&modemCommandOkSem, K_SECONDS(MQTT_TIMEOUT_S)) != 0)
@@ -444,6 +456,7 @@ static void uart_cb(const struct device *uart_device, void *user_data)
             k_sem_give(&modemReadOkSem);
         }
     }
+    printk("READ: %s\n", read_buf);
 }
 
 /**
