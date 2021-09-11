@@ -135,7 +135,9 @@ char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     READ GET RESP   "AT+URDFILE=\"" READ_FILE "\"\r"};
  * 
  */
-
+//TODO Remove MQTT Stuff and keep testing as you do it
+//TODO Add a way to async get http req for sleep profile data
+//TODO Clean up this file its messy
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
