@@ -83,6 +83,8 @@ extern struct k_sem networkReady;
 /* Device tree node identifier for UART1 */
 #define UART1 DT_LABEL(DT_NODELABEL(uart1))
 
+bool modem_http_init(void);
+
 int modem_config_pins(void);
 
 int modem_uart_init(void);

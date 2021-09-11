@@ -48,7 +48,7 @@ K_SEM_DEFINE(modemReadOkSem, 0, 1);
 K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 K_SEM_DEFINE(networkReady, 0, 1);
 
-/* Network Defines */
+/* NETWORK CONFIG */
 #define MODEM_APN "telstra.internet"
 #define MODEM_MCCMNO "50501"
 #define AT_INIT_CMD_SIZE 9  //Array Size containing modem network establish commands
@@ -63,6 +63,10 @@ K_SEM_DEFINE(networkReady, 0, 1);
 //TODO Increase the MQTT Timeout (?)
 #define MQTT_TIMEOUT_S 30
 #define NETWORK_TIMEOUT_S 60
+
+/* RECV THREAD DELAYS */
+#define RX_READ_DELAY_SECS 1
+#define RX_RESPONSE_TIMEOUT_SECS 30
 
 //TODO 1. Modem Sleep Function -> CFUN0
 //TODO 2. Modem Wake Function   -> CFUN1 i think
@@ -123,45 +127,15 @@ char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     //"AT+UHTTPC=0,1,\"" UPDATE_ADDR "\" ,\"" SET_FILE "\"\r",
     "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
     "AT+URDFILE=\"" READ_FILE "\"\r"};
+//!!!!!!!!!!!!!!!!!!!!!
 
-int get_sleep_profile(void)
-{
-    char ts_request[] = "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r";
-    char read_req_file[] = "AT+URDFILE=\"" READ_FILE "\"\r";
-}
+/**
+    SEND GET       "AT+UHTTPC=0,1,\"" UPDATE_ADDR "\" ,\"" SET_FILE "\"\r",
+    REC GET         "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
+    READ GET RESP   "AT+URDFILE=\"" READ_FILE "\"\r"};
+ * 
+ */
 
-bool modem_http_init(void)
-{
-    for (int i = 0; i < HTTP_INIT_CMD_SIZE; ++i)
-    {
-
-        if (k_sem_take(&modemSendSem, K_SECONDS(HTTP_TIMEOUT)) == 0)
-        {
-            modem_uart_tx(httpSetupCommands[i]);
-            if (i == 4)
-                k_msleep(5000);
-
-            k_msleep(1000);
-            k_sem_give(&modemRecSem);
-            if (k_sem_take(&modemCommandOkSem, K_SECONDS(HTTP_TIMEOUT)) != 0)
-            {
-                //Modem response was not OK, or was timed out;
-                return false;
-            }
-        }
-        else
-        {
-            //Unable to send command
-            return false;
-        }
-    }
-    //All commands returned OK and the modemSendSem  was released
-    return true;
-}
-
-//!!!!!!!!!!!!!!!!!!!
-
-//!!!!!!!!!!!!!!!!!!!!
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
@@ -238,19 +212,13 @@ reconnect_MQTT:
     char sendBuffer[128];                     //UART Packet sent to modem
     struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
-    //!
-
-    //!
-
     LOG_INF("Network Ready...");
 
     while (1)
     {
         /* Indicate Network Ready */
         k_sem_give(&networkReady);
-        //!
 
-        //!
         /* Waits to receive sensor data from main thread */
         k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
 
@@ -297,8 +265,6 @@ reconnect_MQTT:
         memset(&sendBuffer, 0, sizeof sendBuffer);
     }
 }
-#define RX_READ_DELAY_SECS 1
-#define RX_RESPONSE_TIMEOUT_SECS 30
 
 /**
  * @brief Receive data from the modem on UART RX
@@ -339,6 +305,42 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
             //Next command can be sent now.
         }
     }
+}
+
+/**
+ * @brief Intialises the modem to send HTTP request
+ * 
+ * @return true if init complete OK
+ * @return false init complete failed
+ */
+bool modem_http_init(void)
+{
+    for (int i = 0; i < HTTP_INIT_CMD_SIZE; ++i)
+    {
+
+        if (k_sem_take(&modemSendSem, K_SECONDS(HTTP_TIMEOUT)) == 0)
+        {
+            modem_uart_tx(httpSetupCommands[i]);
+
+            //TODO REMOVE THIS
+            if (i == 3)
+                k_msleep(4000);
+
+            k_sem_give(&modemRecSem);
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(HTTP_TIMEOUT)) != 0)
+            {
+                //Modem response was not OK, or was timed out;
+                return false;
+            }
+        }
+        else
+        {
+            //Unable to send command
+            return false;
+        }
+    }
+    //All commands returned OK and the modemSendSem  was released
+    return true;
 }
 
 /**
@@ -481,8 +483,10 @@ int json_parse_field8(char *json_string)
 }
 
 /**
- * @brief Read modem response (uart rx) and save into ring buffer.
+ * @brief @brief Read modem responses from ring buffer, and parse the messages
  * 
+ * @return true AT Command OK 
+ * @return false AT Command ERR
  */
 bool modem_recv(void)
 {
