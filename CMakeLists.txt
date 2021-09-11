@@ -17,6 +17,7 @@ include_directories(inc/
                     lib/mcp3008_adc/
                     lib/sys_pwr/
                     lib/sys_led/
+                    lib/jsmn/
                     )
 
 target_sources(app PRIVATE

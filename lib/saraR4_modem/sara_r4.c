@@ -26,6 +26,7 @@
 #include "sensor_ctrl.h"
 #include "sara_r4.h"
 #include "dbg_led.h"
+#include "jsmn.h"
 
 LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
@@ -123,6 +124,12 @@ char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
     "AT+URDFILE=\"" READ_FILE "\"\r"};
 
+int get_sleep_profile(void)
+{
+    char ts_request[] = "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r";
+    char read_req_file[] = "AT+URDFILE=\"" READ_FILE "\"\r";
+}
+
 bool modem_http_init(void)
 {
     for (int i = 0; i < HTTP_INIT_CMD_SIZE; ++i)
@@ -154,6 +161,7 @@ bool modem_http_init(void)
 
 //!!!!!!!!!!!!!!!!!!!
 
+//!!!!!!!!!!!!!!!!!!!!
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
@@ -289,6 +297,8 @@ reconnect_MQTT:
         memset(&sendBuffer, 0, sizeof sendBuffer);
     }
 }
+#define RX_READ_DELAY_SECS 1
+#define RX_RESPONSE_TIMEOUT_SECS 30
 
 /**
  * @brief Receive data from the modem on UART RX
@@ -305,10 +315,10 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
         if (k_sem_take(&modemRecSem, K_FOREVER) == 0)
         {
             //Wait until Rx Data is fully received.
-            if (k_sem_take(&modemReadOkSem, K_FOREVER) == 0)
+            if (k_sem_take(&modemReadOkSem, K_SECONDS(RX_RESPONSE_TIMEOUT_SECS)) == 0)
             {
                 //Wait for RX to complete reading.
-                k_msleep(1000);
+                k_sleep(K_SECONDS(RX_READ_DELAY_SECS));
                 //Read RX ISR Ring Buffer.
                 if (modem_recv())
                 {
@@ -316,8 +326,17 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
                     k_sem_give(&modemSendSem);
                     k_sem_give(&modemCommandOkSem);
                 }
-                //Next command can be sent now.
+                /* This semaphore needs to be reset, so that next time modemReadSem will wait till it is released */
+                k_sem_reset(&modemReadOkSem);
             }
+            else
+            {
+                /* Timeout occured, rearm recv for recovery */
+                k_sem_give(&modemSendSem);
+                k_sem_give(&modemCommandOkSem);
+                k_sem_reset(&modemReadOkSem);
+            }
+            //Next command can be sent now.
         }
     }
 }
@@ -410,35 +429,106 @@ void modem_uart_tx(char *command)
 }
 
 /**
+ * @brief Finds a match for a given json key 
+ * 
+ * @param json jsonc string "{"user": "name"}" 
+ * @param tok jsmn token array
+ * @param s string to compare
+ * @return 0 if a match is found, -1 if not found
+ */
+static int jsoneq(const char *json, jsmntok_t *tok, const char *s)
+{
+    if (tok->type == JSMN_STRING && (int)strlen(s) == tok->end - tok->start &&
+        strncmp(json + tok->start, s, tok->end - tok->start) == 0)
+    {
+        return 0;
+    }
+    return -1;
+}
+
+/**
+ * @brief Takes a thingspeak request jason string and looks for "field8" and returns its value as an int.
+ * @note {"field8":"1234"}
+ * 
+ * @param json_string 
+ * @return int value of field8, -1 if unable to parse
+ */
+int json_parse_field8(char *json_string)
+{
+    jsmn_parser p;
+    jsmntok_t t[128];
+    int r, field8_val_int;
+    char field8_val_str[32];
+    char *endptr;
+
+    jsmn_init(&p);
+    r = jsmn_parse(&p, json_string, strlen(json_string), t, sizeof(t) / sizeof(t[0]));
+
+    /* Loop over all keys of the root object */
+    for (int i = 1; i < r; i++)
+    {
+        if (jsoneq(json_string, &t[i], "field8") == 0)
+        {
+            /* Convert field8 value to a string */
+            snprintk(field8_val_str, 32, "%.*s", t[i + 1].end - t[i + 1].start,
+                     json_string + t[i + 1].start);
+            /* Convert filed8 value string to an int */
+            field8_val_int = strtol(field8_val_str, &endptr, 10);
+            return field8_val_int;
+        }
+    }
+    return -1;
+}
+
+/**
  * @brief Read modem response (uart rx) and save into ring buffer.
  * 
  */
 bool modem_recv(void)
 {
     int numReadBytes = 0; //Number of bytes read from ringbuffer
-    uint8_t ringBufferLoad[MAX_READ_SIZE];
-    char buffer[MAX_READ_SIZE];
+    int jsonStartIndex = 0, jsonEndIndex = 0;
 
-    numReadBytes = ring_buf_get(&rx_rb, ringBufferLoad, sizeof(ringBufferLoad));
+    uint8_t ringBufferLoad[1024];
+    char jsonBuffer[128];
 
-    //Null Terminate Read Buffer
-    //TODO Figure out a way to build a string from this.
-    for (int i = 0; i < numReadBytes; ++i)
+    /* Read data from UART RX Ring Buffer */
+    numReadBytes = ring_buf_get(&rx_rb, ringBufferLoad, 1024);
+    ringBufferLoad[numReadBytes] = '\0';
+
+    /* Find and extract JSON in HTTP Request */
+    //TODO Better way to signal HTTP REQ Parsing
+    if (numReadBytes > 512)
     {
-        buffer[i] = ringBufferLoad[i];
-
-        if (i + 1 == numReadBytes)
+        /* HTTP REQUEST FILE */
+        for (int j = 0; j < numReadBytes; ++j)
         {
-            buffer[i + 1] = '\0';
+            if (ringBufferLoad[j] == '{')
+            {
+                jsonStartIndex = j;
+            }
+
+            if (ringBufferLoad[j] == '}')
+            {
+                jsonEndIndex = j;
+                break;
+            }
         }
+
+        /* Extract the JSON object from the HTTP Request */
+        strncpy(jsonBuffer, ringBufferLoad + jsonStartIndex, (jsonEndIndex + 1) - jsonStartIndex);
+        jsonBuffer[(jsonEndIndex + 1) - jsonStartIndex] = '\0';
+
+        int zx = json_parse_field8(jsonBuffer);
+        LOG_ERR("READ: %d", zx);
     }
 
-    LOG_DBG("MODEM RESPONSE: %s", log_strdup(buffer));
+    LOG_DBG("MODEM RESPONSE: %s", log_strdup(ringBufferLoad));
 
     //Check if the modem response had 'OK' in it
-    for (int i = 0; i < strlen(buffer); ++i)
+    for (int i = 0; i < numReadBytes; ++i)
     {
-        if (buffer[i] == 'O' && buffer[i + 1] == 'K')
+        if (ringBufferLoad[i] == 'O' && ringBufferLoad[i + 1] == 'K')
         {
             return true;
         }
@@ -456,43 +546,39 @@ bool modem_recv(void)
 static void uart_cb(const struct device *uart_device, void *user_data)
 {
     ARG_UNUSED(user_data);
-    /* Verify uart_irq_update() */
-    if (!uart_irq_update(uart_device))
-    {
-        LOG_ERR("UART IRQ Update ERR");
-        return;
-    }
-    //const struct device *dev_uart1 = device_get_binding(UART1);
     const struct device *dev_uart1 = uart_device;
 
-    int rx, ret;
-    static uint8_t read_buf[2048];
+    int rx = 0, ret;
+    uint8_t *dst;
+    uint32_t partial_size = 0;
+    uint32_t total_size = 0;
+
+    ARG_UNUSED(user_data);
 
     /* get all of the data off UART as fast as we can */
     while (uart_irq_update(dev_uart1) &&
            uart_irq_rx_ready(dev_uart1))
     {
-        rx = uart_fifo_read(dev_uart1, read_buf, 2048);
-        //Todo Modem Replies, Need to fix ring buffer.
+        if (!partial_size)
+            partial_size = ring_buf_put_claim(&rx_rb, &dst, UINT32_MAX);
 
-        if (rx > 0)
-        {
-            ret = ring_buf_put(&rx_rb, read_buf, rx);
+        rx = uart_fifo_read(dev_uart1, dst, partial_size);
 
-            if (ret != rx)
-            {
-                LOG_ERR("Rx buffer doesn't have enough space. "
-                        "Bytes pending: %d, written: %d",
-                        rx, ret);
-                mdm_receiver_flush(uart_device);
-                k_sem_give(&modemReadOkSem);
-                break;
-            }
-            //Modem Response received
-            k_sem_give(&modemReadOkSem);
-        }
+        if (rx <= 0)
+            continue;
+
+        dst += rx;
+        total_size += rx;
+        partial_size -= rx;
     }
-    printk("GOT: %s\n", read_buf);
+
+    ret = ring_buf_put_finish(&rx_rb, total_size);
+    __ASSERT_NO_MSG(ret == 0);
+
+    if (total_size > 0)
+    {
+        k_sem_give(&modemReadOkSem);
+    }
 }
 
 /**
