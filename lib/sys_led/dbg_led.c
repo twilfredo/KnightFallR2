@@ -7,7 +7,7 @@
 
 LOG_MODULE_REGISTER(DBG_LED, LOG_LEVEL_DBG);
 //Extern variable for connection status
-bool mqttConnected = false;
+bool httpOk = false;
 
 int init_usr_led(void)
 {
@@ -51,7 +51,7 @@ void thread_flash_debug_led(void *p1, void *p2, void *p3)
     while (1)
     {
 
-        if (mqttConnected == false)
+        if (httpOk == false)
         {
             gpio_pin_set(dev, RED_PIN, 1);
             k_msleep(100);

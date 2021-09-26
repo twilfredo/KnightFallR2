@@ -24,7 +24,7 @@
 /* ==================================================================== */
 /* ===============================GLOBALS============================== */
 /* ==================================================================== */
-extern bool mqttConnected;
+extern bool httpOk;
 extern struct k_msgq to_network_msgq;
 extern struct k_sem networkReady;
 

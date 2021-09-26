@@ -7,9 +7,9 @@
  *          sara-r4 driver and perform network management. 
  *        Sub-routines include
  *                  1. Power cycling the modem (Timing Critical)
- *                  2. MQTT Connection Establishment
- *                  3. MQTT Pub sensor data, and get Config data
- *                  3. Sleeping Modem
+ *                  2. Set Sara R4 in HTTP Mode
+ *                  3. HTTP Get requests to send sensor data, and get Config data
+ *                  4. Sleeping Modem
  *@note This is not a standalone driver for the sara R4 Modem, it integrates
             the networking and the modem for the specific usecase of this project. 
  ************************************************************************
@@ -51,22 +51,16 @@ K_SEM_DEFINE(networkReady, 0, 1);
 /* NETWORK CONFIG */
 #define MODEM_APN "telstra.internet"
 #define MODEM_MCCMNO "50501"
-#define AT_INIT_CMD_SIZE 9  //Array Size containing modem network establish commands
-#define MQTT_INI_CMD_SIZE 6 //Array Size containing MQTT init commands
+#define AT_INIT_CMD_SIZE 9 //Num elements in atInitCommands
 
-/* MQTT DEFINES */
-#define TS_MQTT_ADDR "mqtt.thingspeak.com"
-#define TS_MQTT_PORT "1883"
-#define TS_MQTT_API_KEY "HBMXZE8BF51ONVO5" //Thing Speak API KEY (MQTT - Account Level)
-#define TS_MQTT_UNAME "UQDrifter1"         //This could be any uniqueName
-
-//TODO Increase the MQTT Timeout (?)
-#define MQTT_TIMEOUT_S 30
-#define NETWORK_TIMEOUT_S 60
-
-/* RECV THREAD DELAYS */
+/* RECV THREAD DELAY */
 #define RX_READ_DELAY_SECS 1
-#define RX_RESPONSE_TIMEOUT_SECS 30
+
+/* Semaphore Timeouts */
+#define RX_RESPONSE_TIMEOUT_SECS 30 //Timeout for modem rx OK
+#define INIT_SEND_TIMEOUT_S 60      //Waiting duration for modem init commands
+#define SEND_TIMEOUT 30             //Waiting duration for sending data to modem (Semphore)
+#define AT_OK_TIMEOUT 30            //Waiting duration for an OK message from modem
 
 //TODO 1. Modem Sleep Function -> CFUN0
 //TODO 2. Modem Wake Function   -> CFUN1 i think
@@ -84,50 +78,33 @@ K_SEM_DEFINE(networkReady, 0, 1);
  *        10. RSSI (Current Service Cell)
  */
 char atInitCommands[AT_INIT_CMD_SIZE][64] = {
-    "ATE0\r",             //1
-    "AT+CFUN=0\r",        //2
-    "AT+CMEE=1\r",        //3
-    "AT+UGPIOC=23,0,0\r", //4
-    "AT+CREG=1\r",        //5
-    //"AT+CGMI\r",                               //Request Manufacture Data
-    //"AT+CGMM\r",                               //Request Manufacture Data
-    //"AT+CGMR\r",                               //Request Manufacture Data
-    //"AT+CGSN\r",                               //Request Manufacture Data
-    //"AT+CIMI\r",                               //Request Manufacture Data
+    "ATE0\r",
+    "AT+CFUN=0\r",
+    "AT+CMEE=1\r",
+    "AT+UGPIOC=23,0,0\r",
+    "AT+CREG=1\r",                             //5
     "AT+CGDCONT=1,\"IP\",\"" MODEM_APN "\"\r", //6
     "AT+CFUN=1\r",                             //7
     "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",      //8
     "AT+CFUN=0\r"};                            //9
 
-/* MQTT Connection Setup */
-char mqttSetupCommands[MQTT_INI_CMD_SIZE][128] = {
-    "AT+CPSMS=0\r",
-    "AT+CEDRXS=0\r",
-    "AT+UMQTT=0,35275309002\r", //MQTT unique client id  //! Client ID, TS_MQTT_UNAME and TS_MQTT_API_KEY Should not change
-    "AT+UMQTT=2,\"" TS_MQTT_ADDR "\", " TS_MQTT_PORT "\r",
-    "AT+UMQTT=4,\"" TS_MQTT_UNAME "\",\"" TS_MQTT_API_KEY "\"\r",
-    "AT+UMQTTC=1\r"};
-
-/* In the modem loop, this determined which field to update */
-short publishField = TBD_FIELD;
-
-//!!!!!!!!!!!!!!!!!!!
-#define HTTP_INIT_CMD_SIZE 5
+/* HTTP to ThingSpeak Defines */
+#define HTTP_INIT_CMD_SIZE 5 //Num elements in httpSetupCommands
 #define HTTP_TIMEOUT 30
 #define TS_HTTP_ADDR "api.thingspeak.com"
 #define READ_FILE "read.rsp"
-#define SET_FILE "set.rsp"
-#define UPDATE_ADDR "/update?api_key=69ZL80QUBR5J0F6K&field8=69"
+#define SET_FILE_NAME "set.rsp"
+/* A numeric value followed by '=' will be set into that respective field */
+#define UPDATE_ADDR_OUT "/update?api_key=94Z2J4FS3282TET3&field1="
+/* Read last config numeric from field8 */
 #define READ_ADDR "/channels/1501295/fields/8/last.json"
 
 char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     "AT+CFUN=1\r",
     "AT+UHTTPC=?\r",
     "AT+UHTTP=0,1, \"" TS_HTTP_ADDR "\"\r",
-    //"AT+UHTTPC=0,1,\"" UPDATE_ADDR "\" ,\"" SET_FILE "\"\r",
     "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
     "AT+URDFILE=\"" READ_FILE "\"\r"};
-//!!!!!!!!!!!!!!!!!!!!!
 
 /**
     SEND GET       "AT+UHTTPC=0,1,\"" UPDATE_ADDR "\" ,\"" SET_FILE "\"\r",
@@ -135,14 +112,14 @@ char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     READ GET RESP   "AT+URDFILE=\"" READ_FILE "\"\r"};
  * 
  */
-//TODO Remove MQTT Stuff and keep testing as you do it
+
 //TODO Add a way to async get http req for sleep profile data
 //TODO Clean up this file its messy
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
  *          to ensure modem functionality. Do not change the timing. 
- * @note Whenever this thread gets a packet from the main thread, it will instantly try to publish it. Therefore MQTT delays will be controlled by
+ * @note Whenever this thread gets a packet from the main thread, it will instantly try to send it to thingspeak. Therefore send delays will be controlled by
  *          SYS_ACTIVE_DELAY in the main thread. Limit this to > 15 Seconds. 
  */
 void thread_modem_ctrl(void *p1, void *p2, void *p3)
@@ -151,7 +128,7 @@ void thread_modem_ctrl(void *p1, void *p2, void *p3)
 
 //Begin modem power sequnce
 restart_modem:
-    mqttConnected = false;
+    httpOk = false;
     //Config Modem GPIO Pins
     if (modem_config_pins() != 0)
     {
@@ -182,16 +159,16 @@ restart_modem:
     }
 
     short connectionAttempts = 0;
-//Establish MQTT connection to ThingSpeak
-reconnect_MQTT:
-    LOG_INF("Connecting to MQTT Server...");
+//Establish connection to ThingSpeak
+reconnect_HTTP:
+    LOG_INF("Setting up HTTP...");
 
     packetsDropped = 0; //Reset dropped packet counts
-    mqttConnected = false;
+    httpOk = false;
 
     if (!modem_http_init())
     {
-        LOG_WRN("Error Connecting to MQTT");
+        LOG_WRN("Error setting up HTTP");
         //Unable Modem R/W
         k_sem_give(&modemSendSem);
         k_sem_give(&modemRecSem);
@@ -206,11 +183,11 @@ reconnect_MQTT:
         else
         {
             //Attemp to recoonect
-            goto reconnect_MQTT;
+            goto reconnect_HTTP;
         }
     }
 
-    mqttConnected = true;                     //Control DBG_LED_COLOUR
+    httpOk = true;                            //Control DBG_LED_COLOUR
     char sendBuffer[128];                     //UART Packet sent to modem
     struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
@@ -222,27 +199,27 @@ reconnect_MQTT:
         k_sem_give(&networkReady);
 
         /* Waits to receive sensor data from main thread */
-        k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
+        k_msgq_get(&to_network_msgq, &sensorDataRec, K_SECONDS(5)); //Waits for sensors data to publish
 
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
-        if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
+        if (k_sem_take(&modemSendSem, K_SECONDS(SEND_TIMEOUT)) == 0)
         {
             /* Updates Turbidity Field on thingspeak */
             //This packet in the following form [turbidity#longitude#lattitude]
             //Field 1 is currently selected for packet streaming.
-            snprintk(sendBuffer, 128, "AT+UMQTTC=2,0,0,%s,%s\r", "channels/1416495/publish/fields/field1/94Z2J4FS3282TET3", dataPacket);
+            snprintk(sendBuffer, 128, "AT+UHTTPC=0,1,\"" UPDATE_ADDR_OUT "%s\",\"" SET_FILE_NAME "\"\r", dataPacket);
+
             modem_uart_tx(sendBuffer);
 
             k_sem_give(&modemRecSem); //Singal modem recv thread
 
-            if (k_sem_take(&modemCommandOkSem, K_SECONDS(MQTT_TIMEOUT_S)) != 0)
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(AT_OK_TIMEOUT)) != 0)
             {
                 //Modem response was not OK;
-                LOG_WRN("MQTT Send Error...");
-                //Reconnect MQTT if packets keep dropping.
+                LOG_WRN("GET Reqeust Send Error...");
                 if (packetsDropped >= PCKTS_DROPPED_MAX)
-                    goto reconnect_MQTT;
+                    goto reconnect_HTTP; //Reconnect if packets kept dropping.
 
                 packetsDropped++;
             }
@@ -258,9 +235,9 @@ reconnect_MQTT:
         }
         else
         {
-            //MQTT Error, attempt to re-establish connection.
+            //Unable to get send ok semaphore, attempt to re-establish connection to be safe.
             memset(&sensorDataRec, 0, sizeof sensorDataRec);
-            goto reconnect_MQTT;
+            goto reconnect_HTTP;
         }
 
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
@@ -359,50 +336,15 @@ bool modem_network_init(void)
     for (int i = 0; i < AT_INIT_CMD_SIZE; ++i)
     {
         //Run Modem Initialization Sequence
-        if (k_sem_take(&modemSendSem, K_SECONDS(NETWORK_TIMEOUT_S)) == 0)
+        if (k_sem_take(&modemSendSem, K_SECONDS(INIT_SEND_TIMEOUT_S)) == 0)
         {
             //Modem has received data, send next command
             modem_uart_tx(atInitCommands[i]);
             k_sem_give(&modemRecSem);
 
-            if (k_sem_take(&modemCommandOkSem, K_SECONDS(NETWORK_TIMEOUT_S)) != 0)
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(INIT_SEND_TIMEOUT_S)) != 0)
             {
                 //Modem response was not OK;
-                return false;
-            }
-        }
-        else
-        {
-            //Unable to send command
-            return false;
-        }
-    }
-    //All commands returned OK and the modemSendSem  was released
-    return true;
-}
-
-/**
- * 
- * @brief Attempts to connect to the MQTT Broker defined in the mqttSetupCommands array.
- *          Returns true if successfully connected, else the caller function will
- *          jump to a 'goto' to restablish connection.
- *
- * @return true Connection success.
- * @return false Connection failed.
- */
-bool modem_mqtt_init(void)
-{
-    for (int i = 0; i < MQTT_INI_CMD_SIZE; ++i)
-    {
-
-        if (k_sem_take(&modemSendSem, K_SECONDS(MQTT_TIMEOUT_S)) == 0)
-        {
-            modem_uart_tx(mqttSetupCommands[i]);
-            k_sem_give(&modemRecSem);
-
-            if (k_sem_take(&modemCommandOkSem, K_SECONDS(MQTT_TIMEOUT_S)) != 0)
-            {
-                //Modem response was not OK, or was timed out;
                 return false;
             }
         }
@@ -742,10 +684,10 @@ int modem_pin_init(void)
 }
 
 /**
- * @brief Updates the dataPacket (globally defined) buffer that is sent to the modem
- *          to publish an MQTT packet to a thingspeak field. 
- *        The created buffer is to be of the following format delimited with '#'
- *         [Turbid#Long#Latt]
+ * @brief Updates the dataPacket (globally defined) buffer that contain sensor/location data.
+ *  
+ *        The created buffer is to be of the following format delimited with '$$'
+ *         [Turbid$$Long$$Latt]
  * @param sensorData ptr to a sensor packet containing data to update internal
  *          buffers with.
  */
@@ -755,10 +697,10 @@ void update_sensor_buffers(struct sensor_packet *sensorData)
 
     if (sensorData->longitude == GPS_NO_LOCK_VAL || sensorData->lattitude == GPS_NO_LOCK_VAL)
     {
-        snprintk(dataPacket, sizeof dataPacket, "NTU:%d##LATT:NO_LOCK##LONG:NO_LOCK", sensorData->turbidity);
+        snprintk(dataPacket, sizeof dataPacket, "NTU:%d$$LATT:NO_LOCK$$LONG:NO_LOCK", sensorData->turbidity);
     }
     else
     {
-        snprintk(dataPacket, sizeof dataPacket, "NTU:%d##LATT:%f##LONG:%f", sensorData->turbidity, sensorData->lattitude, sensorData->longitude);
+        snprintk(dataPacket, sizeof dataPacket, "NTU:%d$$LATT:%f$$LONG:%f", sensorData->turbidity, sensorData->lattitude, sensorData->longitude);
     }
 }

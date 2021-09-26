@@ -314,15 +314,21 @@ def t_test():
 
        #     recv_data = requests.get(
         # "https://api.thingspeak.com/channels/1501295/fields/8/last.txt")
-        recv_data = requests.get(
-            "https://api.thingspeak.com/channels/1501295/fields/8.json")
-        print(recv_data.content)
-        time.sleep(1)
+        # recv_data = requests.get(
+        #     "https://api.thingspeak.com/channels/1501295/fields/8.json")
+        # print(recv_data.content)
+
+        y = urllib.request.urlopen(
+            "https://api.thingspeak.com/update?api_key=94Z2J4FS3282TET3&field1=NTU:123$$LATT:321$$LONG:444")
+        print(y)
+
+        time.sleep(5)
 
 
 # Set and start threads
 thread_dataLoop = threading.Thread(target=data_loop, args=())
 thread_guiLoop = threading.Thread(target=gui_loop, args=())
+
 thread_test = threading.Thread(target=t_test, args=())
 
 thread_test.start()
