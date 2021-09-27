@@ -77,6 +77,8 @@ K_SEM_DEFINE(modemGetSettings, 0, 1);
 /* Read last config numeric from field8 */
 #define READ_ADDR "/channels/1501295/fields/8/last.json"
 
+#define MAX_FAULT_COUNTS 5 //Max num faults before reconnect
+
 //TODO 1. Modem Sleep Function -> CFUN0
 //TODO 2. Modem Wake Function   -> CFUN1 i think
 /**
@@ -135,6 +137,7 @@ char pollCommands[POLL_CMDS_SIZE][128] = {
 void thread_modem_ctrl(void *p1, void *p2, void *p3)
 {
     int packetsDropped = 0;
+    int configFaultCount = 0;
 
 //Begin modem power sequnce
 restart_modem:
@@ -173,7 +176,8 @@ restart_modem:
 reconnect_HTTP:
     LOG_INF("Setting up HTTP...");
 
-    packetsDropped = 0; //Reset dropped packet counts
+    packetsDropped = 0;   //Reset dropped packet counts
+    configFaultCount = 0; //Rest config faults
     httpOk = false;
 
     if (!modem_http_init())
@@ -250,6 +254,9 @@ reconnect_HTTP:
             goto reconnect_HTTP;
         }
 
+        memset(&sensorDataRec, 0, sizeof sensorDataRec);
+        memset(&sendBuffer, 0, sizeof sendBuffer);
+
         /**
          * This delay is crucial to allow to modem to finish processing the previous request, Do not change.
          * Could potentially be mitigated by using multiple channels on the modem, but uses slightly more power...
@@ -259,10 +266,11 @@ reconnect_HTTP:
         if (modem_poll_settings() == false)
         {
             LOG_WRN("Unable to complete HTTP request for getting configuration settings.");
-        }
+            configFaultCount++;
 
-        memset(&sensorDataRec, 0, sizeof sensorDataRec);
-        memset(&sendBuffer, 0, sizeof sendBuffer);
+            if (configFaultCount > MAX_FAULT_COUNTS)
+                goto reconnect_HTTP;
+        }
     }
 }
 
