@@ -91,8 +91,6 @@ int modem_uart_init(void);
 
 void thread_modem_ctrl(void *p1, void *p2, void *p3);
 
-void thread_modem_poll_settings(void *p1, void *p2, void *p3);
-
 void thread_modem_receive(void *p1, void *p2, void *p3);
 
 int modem_pin_init(void);

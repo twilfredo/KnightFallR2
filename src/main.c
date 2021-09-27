@@ -47,9 +47,8 @@ struct k_thread led_thread_d;
 /* Network Threads - Modem */
 K_THREAD_STACK_DEFINE(modem_ctrl_stack, STACK_SIZE_MODEM_THREAD);
 K_THREAD_STACK_DEFINE(modem_recv_stack, STACK_SIZE_MODEM_THREAD);
-K_THREAD_STACK_DEFINE(modem_poll_settings_stack, STACK_SIZE_MODEM_THREAD);
 
-struct k_thread modem_ctrl_d, modem_recv_d, modem_poll_settings_d;
+struct k_thread modem_ctrl_d, modem_recv_d;
 
 /* Sensor Control Thread */
 K_THREAD_STACK_DEFINE(sensor_ctrl_stack, STACK_SIZE_SENSOR_CTRL);
@@ -64,7 +63,7 @@ K_THREAD_STACK_DEFINE(adc_ctrl_stack, STACK_SIZE_GPS_THREAD);
 struct k_thread adc_ctrl_d;
 
 /* Thread IDS */
-k_tid_t led_tid, modem_ctrl_tid, modem_recv_tid, modem_poll_settings_tid, sensor_ctrl_tid, gps_ctrl_tid, adc_ctrl_tid;
+k_tid_t led_tid, modem_ctrl_tid, modem_recv_tid, sensor_ctrl_tid, gps_ctrl_tid, adc_ctrl_tid;
 
 /**
  * @brief Creates system threads.
@@ -87,11 +86,6 @@ void spawn_threads(void)
                                      thread_modem_receive,
                                      NULL, NULL, NULL,
                                      THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
-
-    modem_poll_settings_tid = k_thread_create(&modem_poll_settings_d, modem_poll_settings_stack, K_THREAD_STACK_SIZEOF(modem_poll_settings_stack),
-                                              thread_modem_poll_settings,
-                                              NULL, NULL, NULL,
-                                              THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
 
     sensor_ctrl_tid = k_thread_create(&sensor_ctrl_d, sensor_ctrl_stack, K_THREAD_STACK_SIZEOF(sensor_ctrl_stack),
                                       thread_sensor_control,
@@ -144,9 +138,9 @@ pmic_pwr_setup:
         /* 1. Wait for network to be ready, should be always ready, unless error handling */
         k_sem_take(&networkReady, K_FOREVER);
 
-        /* 2. Get Sensor Reading */
-        k_sem_give(&sensor_active_sem);
-        k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
+        // /* 2. Get Sensor Reading */
+        // k_sem_give(&sensor_active_sem);
+        // k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
 
         //printk("Sensors: Turbidity %d NTUs, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.longitude, sensorDataRec.lattitude);
 
@@ -163,7 +157,6 @@ pmic_pwr_setup:
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
 
         LOG_DBG("Control thread sleeping...");
-        k_sem_give(&modemGetSettings); /* Indicate to network driver that it's okay to download config settings */
         k_sleep(K_SECONDS(SYS_ACTIVE_DELAY_SEC));
     }
 }

@@ -62,6 +62,9 @@ K_SEM_DEFINE(modemGetSettings, 0, 1);
 #define INIT_SEND_TIMEOUT_S 60      //Waiting duration for modem init commands
 #define SEND_TIMEOUT 30             //Waiting duration for sending data to modem (Semphore)
 #define AT_OK_TIMEOUT 30            //Waiting duration for an OK message from modem
+#define AT_PROC_DELAY 5             //Delay time for consecutive modem commands (HTTP requests)
+
+#define NETWORK_BUSY_TIMEOUT 15 /* Waiting duration by the config loading thread for network stat, Keep below the SYS_ACTIVE_DELAY_SEC for timing restrictions */
 
 /* HTTP to ThingSpeak */
 #define HTTP_INIT_CMD_SIZE 3 //Num elements in httpSetupCommands
@@ -247,6 +250,17 @@ reconnect_HTTP:
             goto reconnect_HTTP;
         }
 
+        /**
+         * This delay is crucial to allow to modem to finish processing the previous request, Do not change.
+         * Could potentially be mitigated by using multiple channels on the modem, but uses slightly more power...
+         */
+        k_sleep(K_SECONDS(AT_PROC_DELAY));
+
+        if (modem_poll_settings() == false)
+        {
+            LOG_WRN("Unable to complete HTTP request for getting configuration settings.");
+        }
+
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
         memset(&sendBuffer, 0, sizeof sendBuffer);
     }
@@ -289,26 +303,6 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
                 k_sem_reset(&modemReadOkSem);
             }
             //Next command can be sent now.
-        }
-    }
-}
-
-/**
- * @brief Attemps to get config data from thingspeak, sends an HTTP request from the modem,
- *          the req result is read after an appropriate delay, parsed and current config is updated.
- * 
- */
-void thread_modem_poll_settings(void *p1, void *p2, void *p3)
-{
-    while (1)
-    {
-        /* Wait till signalled to download settings */
-        if (k_sem_take(&modemGetSettings, K_FOREVER) == 0)
-        {
-            if (modem_poll_settings() == false)
-            {
-                LOG_WRN("Unable to complete HTTP request for getting configuration settings.");
-            }
         }
     }
 }
