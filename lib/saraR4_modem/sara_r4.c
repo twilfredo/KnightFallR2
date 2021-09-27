@@ -28,7 +28,7 @@
 #include "dbg_led.h"
 #include "jsmn.h"
 
-LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_INF);
 
 /* UART RING BUFFER */
 #define RING_BUF_SIZE (2048)
