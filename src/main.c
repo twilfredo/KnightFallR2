@@ -87,20 +87,20 @@ void spawn_threads(void)
                                      NULL, NULL, NULL,
                                      THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
 
-    sensor_ctrl_tid = k_thread_create(&sensor_ctrl_d, sensor_ctrl_stack, K_THREAD_STACK_SIZEOF(sensor_ctrl_stack),
-                                      thread_sensor_control,
-                                      NULL, NULL, NULL,
-                                      PRIORITY_SENSOR_CTRL, 0, K_NO_WAIT);
+    // sensor_ctrl_tid = k_thread_create(&sensor_ctrl_d, sensor_ctrl_stack, K_THREAD_STACK_SIZEOF(sensor_ctrl_stack),
+    //                                   thread_sensor_control,
+    //                                   NULL, NULL, NULL,
+    //                                   PRIORITY_SENSOR_CTRL, 0, K_NO_WAIT);
 
-    gps_ctrl_tid = k_thread_create(&gps_ctrl_d, gps_ctrl_stack, K_THREAD_STACK_SIZEOF(gps_ctrl_stack),
-                                   thread_gps_ctrl,
-                                   NULL, NULL, NULL,
-                                   THREAD_PRIORITY_GPS, 0, K_NO_WAIT);
+    // gps_ctrl_tid = k_thread_create(&gps_ctrl_d, gps_ctrl_stack, K_THREAD_STACK_SIZEOF(gps_ctrl_stack),
+    //                                thread_gps_ctrl,
+    //                                NULL, NULL, NULL,
+    //                                THREAD_PRIORITY_GPS, 0, K_NO_WAIT);
 
-    adc_ctrl_tid = k_thread_create(&adc_ctrl_d, adc_ctrl_stack, K_THREAD_STACK_SIZEOF(adc_ctrl_stack),
-                                   thread_adc_ctrl,
-                                   NULL, NULL, NULL,
-                                   THREAD_PRIORITY_ADC, 0, K_NO_WAIT);
+    // adc_ctrl_tid = k_thread_create(&adc_ctrl_d, adc_ctrl_stack, K_THREAD_STACK_SIZEOF(adc_ctrl_stack),
+    //                                thread_adc_ctrl,
+    //                                NULL, NULL, NULL,
+    //                                THREAD_PRIORITY_ADC, 0, K_NO_WAIT);
 }
 
 /**

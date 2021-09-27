@@ -28,7 +28,7 @@
 #include "dbg_led.h"
 #include "jsmn.h"
 
-LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
 /* UART RING BUFFER */
 #define RING_BUF_SIZE (2048)
@@ -125,6 +125,51 @@ char pollCommands[POLL_CMDS_SIZE][128] = {
     "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
     "AT+URDFILE=\"" READ_FILE "\"\r"};
 
+//!!!!!!!!!!!!!!!!!!!
+#define HTTP_INIT_CMD_SIZE 5
+#define HTTP_TIMEOUT 30
+#define TS_HTTP_ADDR "api.thingspeak.com"
+#define READ_FILE "read.rsp"
+#define SET_FILE "set.rsp"
+#define UPDATE_ADDR "/update?api_key=69ZL80QUBR5J0F6K&field8=69"
+#define READ_ADDR "/channels/1501295/fields/8.json"
+
+char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
+    "AT+CFUN=1\r",
+    "AT+UHTTPC=?\r",
+    "AT+UHTTP=0,1, \"" TS_HTTP_ADDR "\"\r",
+    //"AT+UHTTPC=0,1,\"" UPDATE_ADDR "\" ,\"" SET_FILE "\"\r",
+    "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
+    "AT+URDFILE=\"" READ_FILE "\"\r"};
+
+bool modem_http_init(void)
+{
+    for (int i = 0; i < HTTP_INIT_CMD_SIZE; ++i)
+    {
+
+        if (k_sem_take(&modemSendSem, K_SECONDS(HTTP_TIMEOUT)) == 0)
+        {
+            modem_uart_tx(httpSetupCommands[i]);
+            k_sem_give(&modemRecSem);
+
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(HTTP_TIMEOUT)) != 0)
+            {
+                //Modem response was not OK, or was timed out;
+                return false;
+            }
+        }
+        else
+        {
+            //Unable to send command
+            return false;
+        }
+    }
+    //All commands returned OK and the modemSendSem  was released
+    return true;
+}
+
+//!!!!!!!!!!!!!!!!!!!
+
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
@@ -203,13 +248,19 @@ reconnect_HTTP:
     char sendBuffer[128];                     //UART Packet sent to modem
     struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
+    //!
+
+    //!
+
     LOG_INF("Network Ready...");
 
     while (1)
     {
         /* Indicate Network Ready */
         k_sem_give(&networkReady);
+        //!
 
+        //!
         /* Waits to receive sensor data from main thread */
         k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
 
