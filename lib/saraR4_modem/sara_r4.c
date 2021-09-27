@@ -30,12 +30,12 @@
 
 LOG_MODULE_REGISTER(SARA_R4, LOG_LEVEL_DBG);
 
-//UART RING BUFFERS
+/* UART RING BUFFER */
 #define RING_BUF_SIZE (2048)
 uint8_t rb_buf[RING_BUF_SIZE];
 struct ring_buf rx_rb;
 
-//SENSOR DATA STRING BUFFERS
+/* SENSOR DATA STRING BUFFERS */
 char turbidity[SD_LEN];
 char longitude[SD_LEN];
 char lattitude[SD_LEN];
@@ -47,6 +47,7 @@ K_SEM_DEFINE(modemRecSem, 0, 1);
 K_SEM_DEFINE(modemReadOkSem, 0, 1);
 K_SEM_DEFINE(modemCommandOkSem, 0, 1);
 K_SEM_DEFINE(networkReady, 0, 1);
+K_SEM_DEFINE(modemGetSettings, 0, 1);
 
 /* NETWORK CONFIG */
 #define MODEM_APN "telstra.internet"
@@ -61,6 +62,17 @@ K_SEM_DEFINE(networkReady, 0, 1);
 #define INIT_SEND_TIMEOUT_S 60      //Waiting duration for modem init commands
 #define SEND_TIMEOUT 30             //Waiting duration for sending data to modem (Semphore)
 #define AT_OK_TIMEOUT 30            //Waiting duration for an OK message from modem
+
+/* HTTP to ThingSpeak */
+#define HTTP_INIT_CMD_SIZE 3 //Num elements in httpSetupCommands
+#define HTTP_TIMEOUT 30
+#define TS_HTTP_ADDR "api.thingspeak.com"
+#define READ_FILE "read.rsp"
+#define SET_FILE_NAME "set.rsp"
+/* A numeric value followed by '=' will be set into that respective field */
+#define UPDATE_ADDR_OUT "/update?api_key=94Z2J4FS3282TET3&field1="
+/* Read last config numeric from field8 */
+#define READ_ADDR "/channels/1501295/fields/8/last.json"
 
 //TODO 1. Modem Sleep Function -> CFUN0
 //TODO 2. Modem Wake Function   -> CFUN1 i think
@@ -88,23 +100,13 @@ char atInitCommands[AT_INIT_CMD_SIZE][64] = {
     "AT+COPS=1,2,\"" MODEM_MCCMNO "\"\r",      //8
     "AT+CFUN=0\r"};                            //9
 
-/* HTTP to ThingSpeak Defines */
-#define HTTP_INIT_CMD_SIZE 5 //Num elements in httpSetupCommands
-#define HTTP_TIMEOUT 30
-#define TS_HTTP_ADDR "api.thingspeak.com"
-#define READ_FILE "read.rsp"
-#define SET_FILE_NAME "set.rsp"
-/* A numeric value followed by '=' will be set into that respective field */
-#define UPDATE_ADDR_OUT "/update?api_key=94Z2J4FS3282TET3&field1="
-/* Read last config numeric from field8 */
-#define READ_ADDR "/channels/1501295/fields/8/last.json"
-
 char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
     "AT+CFUN=1\r",
     "AT+UHTTPC=?\r",
-    "AT+UHTTP=0,1, \"" TS_HTTP_ADDR "\"\r",
-    "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
-    "AT+URDFILE=\"" READ_FILE "\"\r"};
+    "AT+UHTTP=0,1, \"" TS_HTTP_ADDR "\"\r"};
+
+// "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
+// "AT+URDFILE=\"" READ_FILE "\"\r"};
 
 /**
     SEND GET       "AT+UHTTPC=0,1,\"" UPDATE_ADDR "\" ,\"" SET_FILE "\"\r",
@@ -113,8 +115,13 @@ char httpSetupCommands[HTTP_INIT_CMD_SIZE][128] = {
  * 
  */
 
-//TODO Add a way to async get http req for sleep profile data
-//TODO Clean up this file its messy
+#define POLL_CMDS_SIZE 2
+#define HTTP_GET_REQ_WAIT 10 /* In seconds the max expected time for GET request to resolve */
+
+char pollCommands[POLL_CMDS_SIZE][128] = {
+    "AT+UHTTPC=0,1,\"" READ_ADDR "\" ,\"" READ_FILE "\"\r",
+    "AT+URDFILE=\"" READ_FILE "\"\r"};
+
 /**
  * @brief Primary thread that communicates with the Sara-R4 Modem
  *          the sequence of operations in this thread must be maintained
@@ -199,7 +206,7 @@ reconnect_HTTP:
         k_sem_give(&networkReady);
 
         /* Waits to receive sensor data from main thread */
-        k_msgq_get(&to_network_msgq, &sensorDataRec, K_SECONDS(5)); //Waits for sensors data to publish
+        k_msgq_get(&to_network_msgq, &sensorDataRec, K_FOREVER); //Waits for sensors data to publish
 
         update_sensor_buffers(&sensorDataRec); //Updates sensor buffer (int to string)
 
@@ -287,6 +294,57 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
 }
 
 /**
+ * @brief Attemps to get config data from thingspeak, sends an HTTP request from the modem,
+ *          the req result is read after an appropriate delay, parsed and current config is updated.
+ * 
+ */
+void thread_modem_poll_settings(void *p1, void *p2, void *p3)
+{
+    while (1)
+    {
+        /* Wait till signalled to download settings */
+        if (k_sem_take(&modemGetSettings, K_FOREVER) == 0)
+        {
+            if (modem_poll_settings() == false)
+            {
+                LOG_WRN("Unable to complete HTTP request for getting configuration settings.");
+            }
+        }
+    }
+}
+
+bool modem_poll_settings(void)
+{
+    LOG_INF("Downloading Operation Profile");
+    for (int i = 0; i < POLL_CMDS_SIZE; ++i)
+    {
+
+        if (k_sem_take(&modemSendSem, K_SECONDS(HTTP_TIMEOUT)) == 0)
+        {
+            modem_uart_tx(pollCommands[i]);
+
+            if (i == 0)                                /* Read REQ is sent, waiting for modem to get results */
+                k_sleep(K_SECONDS(HTTP_GET_REQ_WAIT)); /* Delay for expected time to complete a HTTP request */
+
+            k_sem_give(&modemRecSem);
+
+            if (k_sem_take(&modemCommandOkSem, K_SECONDS(HTTP_TIMEOUT)) != 0)
+            {
+                //Modem response was not OK, or was timed out;
+                return false;
+            }
+        }
+        else
+        {
+            //Unable to send command
+            return false;
+        }
+    }
+    //All commands returned OK and the modemSendSem  was released
+    return true;
+}
+
+/**
  * @brief Intialises the modem to send HTTP request
  * 
  * @return true if init complete OK
@@ -301,9 +359,9 @@ bool modem_http_init(void)
         {
             modem_uart_tx(httpSetupCommands[i]);
 
-            //TODO REMOVE THIS
-            if (i == 3)
-                k_msleep(4000);
+            // //TODO REMOVE THIS
+            // if (i == 3)
+            //     k_msleep(4000);
 
             k_sem_give(&modemRecSem);
             if (k_sem_take(&modemCommandOkSem, K_SECONDS(HTTP_TIMEOUT)) != 0)
@@ -436,7 +494,6 @@ bool modem_recv(void)
 {
     int numReadBytes = 0; //Number of bytes read from ringbuffer
     int jsonStartIndex = 0, jsonEndIndex = 0;
-
     uint8_t ringBufferLoad[1024];
     char jsonBuffer[128];
 
@@ -444,8 +501,10 @@ bool modem_recv(void)
     numReadBytes = ring_buf_get(&rx_rb, ringBufferLoad, 1024);
     ringBufferLoad[numReadBytes] = '\0';
 
-    /* Find and extract JSON in HTTP Request */
-    //TODO Better way to signal HTTP REQ Parsing
+    /* The data recvd from the modem is a HTTP request (yes, this is terrible design)
+     *  parse the HTTP request and extract from JSON field what the profile in was.
+     * The JSON parsing code has been 'burrowed' from JSMN library.
+     */
     if (numReadBytes > 512)
     {
         /* HTTP REQUEST FILE */
@@ -467,8 +526,9 @@ bool modem_recv(void)
         strncpy(jsonBuffer, ringBufferLoad + jsonStartIndex, (jsonEndIndex + 1) - jsonStartIndex);
         jsonBuffer[(jsonEndIndex + 1) - jsonStartIndex] = '\0';
 
-        int zx = json_parse_field8(jsonBuffer);
-        LOG_ERR("READ: %d", zx);
+        int operationProfile = json_parse_field8(jsonBuffer);
+        LOG_DBG("Profile Value: %d", operationProfile);
+        set_operation_profile(operationProfile);
     }
 
     LOG_DBG("MODEM RESPONSE: %s", log_strdup(ringBufferLoad));
@@ -482,6 +542,34 @@ bool modem_recv(void)
         }
     }
     return false;
+}
+
+/**
+ * @brief Set the system active delay based on the operation profile.
+ * 
+ * @param opProfile profile value to set specific system delay presets. 
+ */
+void set_operation_profile(int opProfile)
+{
+    switch (opProfile)
+    {
+    case 1:
+        SYS_ACTIVE_DELAY_SEC = 30;
+        LOG_INF("System Delay updated to 30s");
+        break;
+    case 2:
+        SYS_ACTIVE_DELAY_SEC = 60;
+        LOG_INF("System Delay updated to 60s");
+        break;
+    case 3:
+        SYS_ACTIVE_DELAY_SEC = 120;
+        LOG_INF("System Delay updated to 120s");
+        break;
+    default:
+        SYS_ACTIVE_DELAY_SEC = 30;
+        LOG_WRN("Invalid profile, Settings System Delay 30s");
+        break;
+    }
 }
 
 /**

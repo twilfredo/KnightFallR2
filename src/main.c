@@ -32,8 +32,9 @@
  * 
  * Should keep it atleast > 15 seconds, as thingspeak server has a bandwidth limit capped at every 15 seconds (max update rate)
  * 
+ * The delay should only be updated by the network driver upon a succesful poll to thingspeak to get user set profiles. 
  */
-#define SYS_ACTIVE_DELAY 15
+int SYS_ACTIVE_DELAY_SEC = 30;
 
 LOG_MODULE_REGISTER(device_ctrl_main, LOG_LEVEL_DBG);
 
@@ -46,7 +47,9 @@ struct k_thread led_thread_d;
 /* Network Threads - Modem */
 K_THREAD_STACK_DEFINE(modem_ctrl_stack, STACK_SIZE_MODEM_THREAD);
 K_THREAD_STACK_DEFINE(modem_recv_stack, STACK_SIZE_MODEM_THREAD);
-struct k_thread modem_ctrl_d, modem_recv_d;
+K_THREAD_STACK_DEFINE(modem_poll_settings_stack, STACK_SIZE_MODEM_THREAD);
+
+struct k_thread modem_ctrl_d, modem_recv_d, modem_poll_settings_d;
 
 /* Sensor Control Thread */
 K_THREAD_STACK_DEFINE(sensor_ctrl_stack, STACK_SIZE_SENSOR_CTRL);
@@ -59,8 +62,9 @@ struct k_thread gps_ctrl_d;
 /* MCP3008 ADC */
 K_THREAD_STACK_DEFINE(adc_ctrl_stack, STACK_SIZE_GPS_THREAD);
 struct k_thread adc_ctrl_d;
+
 /* Thread IDS */
-k_tid_t led_tid, modem_ctrl_tid, modem_recv_tid, sensor_ctrl_tid, gps_ctrl_tid, adc_ctrl_tid;
+k_tid_t led_tid, modem_ctrl_tid, modem_recv_tid, modem_poll_settings_tid, sensor_ctrl_tid, gps_ctrl_tid, adc_ctrl_tid;
 
 /**
  * @brief Creates system threads.
@@ -84,20 +88,25 @@ void spawn_threads(void)
                                      NULL, NULL, NULL,
                                      THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
 
-    // sensor_ctrl_tid = k_thread_create(&sensor_ctrl_d, sensor_ctrl_stack, K_THREAD_STACK_SIZEOF(sensor_ctrl_stack),
-    //                                   thread_sensor_control,
-    //                                   NULL, NULL, NULL,
-    //                                   PRIORITY_SENSOR_CTRL, 0, K_NO_WAIT);
+    modem_poll_settings_tid = k_thread_create(&modem_poll_settings_d, modem_poll_settings_stack, K_THREAD_STACK_SIZEOF(modem_poll_settings_stack),
+                                              thread_modem_poll_settings,
+                                              NULL, NULL, NULL,
+                                              THREAD_PRIORITY_MODEM, 0, K_NO_WAIT);
 
-    // gps_ctrl_tid = k_thread_create(&gps_ctrl_d, gps_ctrl_stack, K_THREAD_STACK_SIZEOF(gps_ctrl_stack),
-    //                                thread_gps_ctrl,
-    //                                NULL, NULL, NULL,
-    //                                THREAD_PRIORITY_GPS, 0, K_NO_WAIT);
+    sensor_ctrl_tid = k_thread_create(&sensor_ctrl_d, sensor_ctrl_stack, K_THREAD_STACK_SIZEOF(sensor_ctrl_stack),
+                                      thread_sensor_control,
+                                      NULL, NULL, NULL,
+                                      PRIORITY_SENSOR_CTRL, 0, K_NO_WAIT);
 
-    // adc_ctrl_tid = k_thread_create(&adc_ctrl_d, adc_ctrl_stack, K_THREAD_STACK_SIZEOF(adc_ctrl_stack),
-    //                                thread_adc_ctrl,
-    //                                NULL, NULL, NULL,
-    //                                THREAD_PRIORITY_ADC, 0, K_NO_WAIT);
+    gps_ctrl_tid = k_thread_create(&gps_ctrl_d, gps_ctrl_stack, K_THREAD_STACK_SIZEOF(gps_ctrl_stack),
+                                   thread_gps_ctrl,
+                                   NULL, NULL, NULL,
+                                   THREAD_PRIORITY_GPS, 0, K_NO_WAIT);
+
+    adc_ctrl_tid = k_thread_create(&adc_ctrl_d, adc_ctrl_stack, K_THREAD_STACK_SIZEOF(adc_ctrl_stack),
+                                   thread_adc_ctrl,
+                                   NULL, NULL, NULL,
+                                   THREAD_PRIORITY_ADC, 0, K_NO_WAIT);
 }
 
 /**
@@ -152,7 +161,9 @@ pmic_pwr_setup:
 
         //Clear current data, queue is pass by copy not reference
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
-        LOG_INF("Taking a small nap...");
-        k_sleep(K_SECONDS(SYS_ACTIVE_DELAY));
+
+        LOG_DBG("Control thread sleeping...");
+        k_sem_give(&modemGetSettings); /* Indicate to network driver that it's okay to download config settings */
+        k_sleep(K_SECONDS(SYS_ACTIVE_DELAY_SEC));
     }
 }

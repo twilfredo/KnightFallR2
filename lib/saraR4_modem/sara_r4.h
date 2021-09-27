@@ -26,8 +26,8 @@
 /* ==================================================================== */
 extern bool httpOk;
 extern struct k_msgq to_network_msgq;
-extern struct k_sem networkReady;
-
+extern struct k_sem networkReady, modemGetSettings;
+extern int SYS_ACTIVE_DELAY_SEC;
 /* ==================================================================== */
 /* ==============================MODEM PINS============================ */
 /* ==================================================================== */
@@ -91,6 +91,8 @@ int modem_uart_init(void);
 
 void thread_modem_ctrl(void *p1, void *p2, void *p3);
 
+void thread_modem_poll_settings(void *p1, void *p2, void *p3);
+
 void thread_modem_receive(void *p1, void *p2, void *p3);
 
 int modem_pin_init(void);
@@ -99,11 +101,15 @@ void modem_uart_tx(char *command);
 
 bool modem_recv(void);
 
+bool modem_poll_settings(void);
+
 void mdm_receiver_flush(const struct device *uart_device);
 
 bool modem_network_init(void);
 
 bool modem_mqtt_init(void);
+
+void set_operation_profile(int opProfile);
 
 void update_sensor_buffers(struct sensor_packet *sensorData);
 
