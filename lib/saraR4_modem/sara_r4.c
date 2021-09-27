@@ -79,8 +79,6 @@ K_SEM_DEFINE(modemGetSettings, 0, 1);
 
 #define MAX_FAULT_COUNTS 5 //Max num faults before reconnect
 
-//TODO 1. Modem Sleep Function -> CFUN0
-//TODO 2. Modem Wake Function   -> CFUN1 i think
 /**
  * @brief The following array contains modem initialization AT commands.
  *        1. Turn Echo Off.
