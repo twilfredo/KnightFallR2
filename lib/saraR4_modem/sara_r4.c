@@ -271,6 +271,7 @@ reconnect_HTTP:
             if (configFaultCount > MAX_FAULT_COUNTS)
                 goto reconnect_HTTP;
         }
+        LOG_INF("Network Cycle Complete...");
     }
 }
 
@@ -317,7 +318,7 @@ void thread_modem_receive(void *p1, void *p2, void *p3)
 
 bool modem_poll_settings(void)
 {
-    LOG_INF("Downloading Operation Profile");
+    LOG_INF("Downloading Operation Profile...");
     for (int i = 0; i < POLL_CMDS_SIZE; ++i)
     {
 

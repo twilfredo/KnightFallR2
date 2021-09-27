@@ -139,8 +139,8 @@ pmic_pwr_setup:
         k_sem_take(&networkReady, K_FOREVER);
 
         /* 2. Get Sensor Reading */
-        // k_sem_give(&sensor_active_sem);
-        // k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
+        k_sem_give(&sensor_active_sem);
+        k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
 
         //printk("Sensors: Turbidity %d NTUs, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.longitude, sensorDataRec.lattitude);
 
