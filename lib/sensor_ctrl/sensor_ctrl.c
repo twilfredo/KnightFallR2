@@ -18,6 +18,7 @@
 //Local Includes
 #include "sensor_ctrl.h"
 #include "sensor_pwr.h"
+#include "mcp3008.h"
 #include "sam_m8q.h"
 
 LOG_MODULE_REGISTER(sensor_ctrl, LOG_LEVEL_INF);
@@ -28,15 +29,6 @@ K_MSGQ_DEFINE(sensor_msgq, sizeof(struct sensor_packet), 10, 4);
 K_SEM_DEFINE(sensor_active_sem, 0, 1);
 K_SEM_DEFINE(tsd10_read_sem, 0, 1);
 K_SEM_DEFINE(gps_read_sem, 0, 1);
-
-/* TSD-10 Reading Signal */
-struct k_poll_signal tsd10_sig =
-    K_POLL_SIGNAL_INITIALIZER(tsd10_sig);
-
-struct k_poll_event tsd10_evt =
-    K_POLL_EVENT_INITIALIZER(K_POLL_TYPE_SIGNAL,
-                             K_POLL_MODE_NOTIFY_ONLY,
-                             &tsd10_sig);
 
 /* Creating subcommands (level 1 command) array for command "demo". */
 SHELL_STATIC_SUBCMD_SET_CREATE(sensors_sub,
@@ -113,7 +105,7 @@ void thread_sensor_control(void *p1, void *p2, void *p3)
                 //TODO Attempt to put it here again?
             }
             //Clear current data, queue is pass by copy not reference
-            memset(&sensorData, 0, sizeof sensorData);
+            memset(&sensorData, 0, sizeof(struct sensor_packet));
         }
     }
 }
@@ -159,19 +151,22 @@ void get_gps(struct sensor_packet *sensorData)
 void get_turbidity(struct sensor_packet *sensorData)
 {
     //This sem allows for a tsd10 adc read, see tsd10_adc.c
+    struct tsd_data tsdDataRx = {0};
+
     k_sem_give(&tsd10_read_sem);
 
-    if (k_poll(&tsd10_evt, 1, K_MSEC(TSD_EVENT_TIMEOUT)) != 0)
+    if (k_msgq_get(&tsd_msgq, &tsdDataRx, K_SECONDS(TSD_EVENT_TIMEOUT)) != 0)
     {
-        //Timeout occured
+        /* MSG not received, timeout */
         LOG_ERR("TSD_10 Reading timed out");
-        k_poll_signal_reset(&tsd10_sig);
         return;
     }
-    //Save turbidity into respective field in sensor data packet
-    sensorData->turbidity = tsd10_evt.signal->result;
-    //printk("NTUs: %d\n", sensorData->turbidity);
-    k_poll_signal_reset(&tsd10_sig);
+
+    //Save data into respective field in sensor data packet
+    sensorData->tsdmV = tsdDataRx.tsd_mV;
+    sensorData->turbidity = tsdDataRx.tsd_NTU;
+
+    //printk("NTUs: %d Voltage: %f mV\n", sensorData->turbidity, sensorData->tsdmV);
 }
 
 /**

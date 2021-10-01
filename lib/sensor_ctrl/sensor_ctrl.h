@@ -6,12 +6,12 @@
 struct sensor_packet
 {
     int turbidity; //Stored in NTUs
+    float tsdmV;   //tsd-10 output voltage (averaged sample)
     float longitude, lattitude;
 };
 
 extern struct k_msgq sensor_msgq;
 extern struct k_sem sensor_active_sem, tsd10_read_sem, gps_read_sem;
-extern struct k_poll_signal tsd10_sig;
 
 /* Sensor Defines */
 #define SENSOR_PWR_ON true
@@ -19,7 +19,7 @@ extern struct k_poll_signal tsd10_sig;
 #define VRAIL_DELAY 500 //ms
 /* 1000 msec = 1 sec */
 #define SLEEP_TIME_MS 500
-#define TSD_EVENT_TIMEOUT 1000
+#define TSD_EVENT_TIMEOUT 30
 
 /* Debug Thread Stack size */
 #define STACK_SIZE_SENSOR_CTRL 2048

@@ -17,6 +17,13 @@
 #define SPI_CS_PIN 31
 #define SPI_CS_DELAY 2
 #define SPI DT_NODELABEL(spi3)
+/* DATA MESSAGE Q */
+extern struct k_msgq tsd_msgq;
+/* Data packet from MCP3008 to sensor control */
+struct tsd_data
+{
+    float tsd_NTU, tsd_mV;
+};
 
 void thread_adc_ctrl(void *p1, void *p2, void *p3);
 

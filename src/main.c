@@ -142,7 +142,7 @@ pmic_pwr_setup:
         k_sem_give(&sensor_active_sem);
         k_msgq_get(&sensor_msgq, &sensorDataRec, K_FOREVER);
 
-        //printk("Sensors: Turbidity %d NTUs, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.longitude, sensorDataRec.lattitude);
+        printk("Sensors: %d NTUs, TSD-Voltage: %f mV, Lon: %f Lat: %f", sensorDataRec.turbidity, sensorDataRec.tsdmV, sensorDataRec.longitude, sensorDataRec.lattitude);
 
         /* 3. Send Data to Network Driver */
         if (k_msgq_put(&to_network_msgq, &sensorDataRec, K_NO_WAIT) != 0)

@@ -6,7 +6,9 @@
 
 #include "mcp3008.h"
 #include "sensor_ctrl.h"
-
+/* Message queue for sensor to upper abstraction layer */
+K_MSGQ_DEFINE(tsd_msgq, sizeof(struct tsd_data), 10, 4);
+/* Define logging module */
 LOG_MODULE_REGISTER(MCP3008, LOG_LEVEL_INF);
 
 /**
@@ -102,6 +104,8 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
     float adcVoltage = 0;
     float adcVoltageAvg = 0;
 
+    struct tsd_data tsdData = {0};
+
     while (1)
     {
         adcVoltageAvg = 0;
@@ -132,10 +136,21 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
 
         adcVoltageAvg /= ADC_SAMPLES;
 
-        k_poll_signal_raise(&tsd10_sig, millivolts_to_NTU(adcVoltageAvg));
+        tsdData.tsd_mV = adcVoltageAvg;
+        tsdData.tsd_NTU = millivolts_to_NTU(adcVoltageAvg);
 
-        // printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
-        // printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
+        /* Send this reads data to queue */
+        if (k_msgq_put(&tsd_msgq, &tsdData, K_NO_WAIT) != 0)
+        {
+            LOG_WRN("Purging TSD-10 msgq...");
+            k_msgq_purge(&tsd_msgq); //Make Space
+        }
+
+        //printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
+        //printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
+
+        //Clear current data, queue is pass by copy not reference
+        memset(&tsdData, 0, sizeof(struct tsd_data));
 
         k_msleep(500);
     }
