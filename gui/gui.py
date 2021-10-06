@@ -25,6 +25,7 @@ WAIT_TIME = 30
 dataPoints = 10
 createdAt = ["" for x in range(dataPoints)]
 ntus = ["" for x in range(dataPoints)]
+tsdmV = ["" for x in range(dataPoints)]
 long = ["" for x in range(dataPoints)]
 latt = ["" for x in range(dataPoints)]
 entry_id = ["" for x in range(dataPoints)]
@@ -84,11 +85,16 @@ def data_loop():
             timeY = timeX.split('T')
             createdAt[loopCount] = timeY[0] + '  ' + timeY[1].split('+')[0]
 
-            dbuf = (x['field1'].split('##'))
+            dbuf = (x['field1'].split('$$'))
+
+            if (len(dbuf) != 4):
+                loopCount += 1
+                continue
 
             ntus[loopCount] = (dbuf[0].split(':')[1])
-            latt[loopCount] = (dbuf[1].split(':')[1])
-            long[loopCount] = (dbuf[2].split(':')[1])
+            tsdmV[loopCount] = (dbuf[1].split(':')[1])
+            latt[loopCount] = (dbuf[2].split(':')[1])
+            long[loopCount] = (dbuf[3].split(':')[1])
             entry_id[loopCount] = str(x['entry_id'])
 
             loopCount += 1
@@ -96,11 +102,6 @@ def data_loop():
         # Sleep for a little bit and loop again.
         updatingIn = 30
         time.sleep(WAIT_TIME)
-
-        # print(createdAt)
-        # print(ntus)
-        # print(latt)
-        # print(long)
 
 
 def time_sec_cb():
@@ -319,7 +320,7 @@ def t_test():
         # print(recv_data.content)
 
         y = urllib.request.urlopen(
-            "https://api.thingspeak.com/update?api_key=94Z2J4FS3282TET3&field1=NTU:123$$LATT:321$$LONG:444")
+            "https://api.thingspeak.com/update?api_key=94Z2J4FS3282TET3&field1=NTU:644$$TSD_MV:3705.64$$LATT:-27.275131$$LONG:153.022507")
         print(y)
 
         time.sleep(5)
@@ -331,6 +332,6 @@ thread_guiLoop = threading.Thread(target=gui_loop, args=())
 
 thread_test = threading.Thread(target=t_test, args=())
 
-thread_test.start()
-# thread_guiLoop.start()
-# thread_dataLoop.start()
+# thread_test.start()
+thread_guiLoop.start()
+thread_dataLoop.start()
