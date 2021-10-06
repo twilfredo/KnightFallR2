@@ -17,29 +17,26 @@ LOG_MODULE_REGISTER(MCP3008, LOG_LEVEL_INF);
  *          curve fit. 
  * 
  * @note Approximated convertion equation dervived using parabolic curve fitting to the dataset
- *       f(x) = 0.000314577x^2 − 2.85578x + 6202.72
+ *       NTU = -0.000000056367195797083(mV^3) + 0.000903132831336(mV^2) -5.26249626122612(mV) + 10611.2487902283
+ *       R^2 = 0.9996820
  * 
  * @param mV value to the converted in to NTUs
  * @return int respective NTU value. 
  */
 float millivolts_to_NTU(int mV)
 {
-    if (mV < 800)
-    {
-        //Edge Case 1, Sensor Limit
-        return 4000.0;
-    }
+    if (mV <= 1700) //Edge Case 1, Sensor Min Limit
+        return 4000.00;
 
-    if (mV > 4700)
-    {
-        //Edge Case 2, MAX ADC
-        return 0.0;
-    }
+    if (mV >= 4600)
+        return 0.00;
 
-    float coef1 = 0.000314577 * mV * mV;
-    float coef2 = 2.85578 * mV;
+    double coef1 = -(0.000000056367195797083) * mV * mV * mV;
+    double coef2 = 0.000903132831336 * mV * mV;
+    double coef3 = -(5.26249626122612) * mV;
+    double constant = 10611.2487902283;
 
-    return coef1 - coef2 + 6202.72;
+    return (coef1 + coef2 + coef3 + constant);
 }
 
 float adc_to_mV(uint16_t adcRead)
@@ -139,6 +136,8 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
         tsdData.tsd_mV = adcVoltageAvg;
         tsdData.tsd_NTU = millivolts_to_NTU(adcVoltageAvg);
 
+        LOG_INF("Measured: %d NTUs", (int)tsdData.tsd_NTU);
+
         /* Send this reads data to queue */
         if (k_msgq_put(&tsd_msgq, &tsdData, K_NO_WAIT) != 0)
         {
@@ -146,8 +145,8 @@ void thread_adc_ctrl(void *p1, void *p2, void *p3)
             k_msgq_purge(&tsd_msgq); //Make Space
         }
 
-        //printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
-        //printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
+        // printk("NTUs: %f\n", millivolts_to_NTU(adcVoltageAvg));
+        // printk("TSD-10 Voltage: %fmV\n", adcVoltageAvg);
 
         //Clear current data, queue is pass by copy not reference
         memset(&tsdData, 0, sizeof(struct tsd_data));
