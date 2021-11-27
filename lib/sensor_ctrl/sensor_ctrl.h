@@ -7,7 +7,7 @@ struct sensor_packet
 {
     int turbidity; //Stored in NTUs
     float tsdmV;   //tsd-10 output voltage (averaged sample)
-    float longitude, lattitude;
+    double longitude, lattitude;
 };
 
 extern struct k_msgq sensor_msgq;

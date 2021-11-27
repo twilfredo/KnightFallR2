@@ -39,7 +39,7 @@ struct ring_buf rx_rb;
 char turbidity[SD_LEN];
 char longitude[SD_LEN];
 char lattitude[SD_LEN];
-char dataPacket[64];
+char dataPacket[128];
 
 /* Modem Send/Rec Semaphore */
 K_SEM_DEFINE(modemSendSem, 1, 1);
@@ -202,7 +202,7 @@ reconnect_HTTP:
     }
 
     httpOk = true;                            //Control DBG_LED_COLOUR
-    char sendBuffer[128];                     //UART Packet sent to modem
+    char sendBuffer[512];                     //UART Packet sent to modem
     struct sensor_packet sensorDataRec = {0}; //Data Packet from the sensors
 
     LOG_INF("Network Ready...");
@@ -222,7 +222,7 @@ reconnect_HTTP:
             /* Updates Turbidity Field on thingspeak */
             //This packet in the following form [turbidity#longitude#lattitude]
             //Field 1 is currently selected for packet streaming.
-            snprintk(sendBuffer, 128, "AT+UHTTPC=0,1,\"" UPDATE_ADDR_OUT "%s\",\"" SET_FILE_NAME "\"\r", dataPacket);
+            snprintk(sendBuffer, 512, "AT+UHTTPC=0,1,\"" UPDATE_ADDR_OUT "%s\",\"" SET_FILE_NAME "\"\r", dataPacket);
 
             modem_uart_tx(sendBuffer);
 
@@ -256,6 +256,7 @@ reconnect_HTTP:
 
         memset(&sensorDataRec, 0, sizeof sensorDataRec);
         memset(&sendBuffer, 0, sizeof sendBuffer);
+        memset(dataPacket, 0, sizeof dataPacket);
 
         /**
          * This delay is crucial to allow to modem to finish processing the previous request, Do not change.
@@ -792,6 +793,6 @@ void update_sensor_buffers(struct sensor_packet *sensorData)
     }
     else
     {
-        snprintk(dataPacket, sizeof dataPacket, "NTU:%d$$TSD_MV:%0.2f$$LATT:%f$$LONG:%f", sensorData->turbidity, sensorData->tsdmV, sensorData->lattitude, sensorData->longitude);
+        snprintk(dataPacket, sizeof dataPacket, "NTU:%d$$TSD_MV:%0.2f$$LATT:%0.15lf$$LONG:%0.15lf", sensorData->turbidity, sensorData->tsdmV, sensorData->lattitude, sensorData->longitude);
     }
 }

@@ -4,7 +4,7 @@
 /* Structure containing the recieved in values of a GLL message */
 struct samGLLMessage
 {
-    float lat, lon;
+    double lat, lon;
 };
 
 /* GLL Data Packet Message Queue, Sends data to sensor control */
@@ -53,6 +53,6 @@ bool sam_recv(struct samGLLMessage *gllMsgPacket);
 
 bool sam_recv_parse(struct samGLLMessage *gllMsgPacket, char *gllMsg, int sizeofBuffer);
 
-float GpsToDecimalDegrees(const char *nmeaPos, char quadrant);
+double GpsToDecimalDegrees(const char *nmeaPos, char quadrant);
 
 #endif

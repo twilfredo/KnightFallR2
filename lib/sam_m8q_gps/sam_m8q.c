@@ -269,11 +269,11 @@ bool sam_recv_parse(struct samGLLMessage *gllMsgPacket, char *gllMsg, int sizeof
  * 
  * @param nmeaPos as string 
  * @param quadrant N/S, E/W
- * @return float decimal degree from NMEA absolute position. 
+ * @return double decimal degree from NMEA absolute position. 
  */
-float GpsToDecimalDegrees(const char *nmeaPos, char quadrant)
+double GpsToDecimalDegrees(const char *nmeaPos, char quadrant)
 {
-    float v = 0;
+    double v = 0;
     if (strlen(nmeaPos) > 5)
     {
         char integerPart[3 + 1];
