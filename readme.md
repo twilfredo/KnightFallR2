@@ -9,6 +9,14 @@ soil from catchment areas down to Morton Bay.
 The monitoring data provided by the drifter such as turbidity and location, is crucial
 for deploying good mitigation strategies.
 
+## Building
+The app was developed on Zephyr V2.6.X. Newer versions of Zephyr may not be compatible due to upstream changes.
+
+```shell
+west build -p
+west flash #J-link
+```
+
 ## Device Interaction <br />
 The device is equipped with a shell and logging through USB. It can be accessed over micro usb with any PC, on linux the use the following to open a session
 >screen /dev/ttyACMX 115200
