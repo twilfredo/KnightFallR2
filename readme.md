@@ -32,4 +32,17 @@ Clicking on 'export recent data', then 'JSON' is the easiest way of watching the
 ### GUI <br />
 The output stream from the drifter can also be viewed using the GUI, it shows a recent history (last 10 updates) from the drifter and the ability to locate the device based on its last known location using google maps (click the locate button).
 
+### Deployment Results <br />
+
+The drifter was deployed on the 1/12/2021 and was successfully recovered on the 2/12/2021. The following images show deployment adventures of the drifter!
+
+![image](https://user-images.githubusercontent.com/36925352/148931658-9dc4be07-5994-477d-bb8f-62e7b48bced9.png)
+
+![image](https://user-images.githubusercontent.com/36925352/148931574-7093fadb-25af-4d9a-a38d-ab5d96dfe263.png)
+
+![image](https://user-images.githubusercontent.com/36925352/148931792-c4fbe9ed-3eac-4f0a-aa4a-36516d186fbc.png)
+
+### Drifter Poster <br />
+![2021 ITEE Innovation Showcase Poster Templates](https://user-images.githubusercontent.com/36925352/148932114-dd61cc2b-0f69-4a2b-9b30-ab8555b7bb4d.jpg)
+
 <br />
